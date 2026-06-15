@@ -57,6 +57,9 @@ DAY_MAP = {
     "TH": "Thursday", "FR": "Friday", "SA": "Saturday",
 }
 
+# Day-code → chronological index for sorting (Mon first, Sat last)
+DAY_ORDER = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5}
+
 
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
 
@@ -269,6 +272,19 @@ def find_team(sess_row, teams):
 
 # ── RECONCILIATION ────────────────────────────────────────────────────────────
 
+def _session_sort_key(team_name: str):
+    """
+    Sort key for team slots: (base_name, day_index, hour, minute).
+    Groups sessions by venue+age-group, then orders chronologically
+    Mon→Sat and earliest time first within each day.
+    """
+    t = str(team_name).upper()
+    m = re.search(r'\b(MO|TU|WE|TH|FR|SA)(\d{2})(\d{2})\b', t)
+    if m:
+        base = str(team_name)[:m.start()].strip().upper()
+        return (base, DAY_ORDER.get(m.group(1), 99), int(m.group(2)), int(m.group(3)))
+    return (t, 99, 0, 0)
+
 def reconcile(teams, sessions):
     months = sorted(sessions["month_key"].unique())
     month_labels = [datetime.strptime(m, "%Y-%m").strftime("%b %y") for m in months]
@@ -318,7 +334,7 @@ def reconcile(teams, sessions):
                     "coach_id":  int(sess["coach_id"]) if pd.notna(sess["coach_id"]) else None,
                 })
 
-        for key in sorted(bucket):
+        for key in sorted(bucket, key=_session_sort_key):
             team     = bucket[key]["team_row"]
             ref_id   = team["coach_id"]
             ref_name = team["coach_name"] if team["coach_name"] not in ("", "nan") else "—"
