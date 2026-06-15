@@ -150,6 +150,19 @@
     td.num.o.has { background: var(--red-bg); }
     td.num.zero { color: #bdbdbd; font-weight: 400; }
 
+    /* Match % cell */
+    td.num.pct { min-width: 58px; font-size: 13px; font-weight: 700; }
+    td.num.pct.good { background: var(--green-bg); color: var(--green); }
+    td.num.pct.mid  { background: #fff8e1; color: #e65100; }
+    td.num.pct.bad  { background: var(--red-bg); color: var(--red); }
+
+    /* Substitute coaches under ref name */
+    .sub-coach { display: block; font-size: 10px; color: var(--muted); font-style: normal; margin-top: 2px; }
+    .sub-coach strong { font-weight: 600; color: var(--text); }
+
+    /* Amber badge for category match % */
+    .badge.mid { background: #e65100; color: #fff; }
+
     .hidden { display: none !important; }
 
     /* Badges */
@@ -266,7 +279,8 @@ function render(data) {
     <thead>
       <tr>
         <th class="left" rowspan="2" style="min-width:220px">Session / Team</th>
-        <th class="left" rowspan="2" style="min-width:140px">Reference Coach</th>
+        <th class="left" rowspan="2" style="min-width:160px">Reference Coach</th>
+        <th rowspan="2" style="min-width:64px">Match %</th>
         <th colspan="2" style="border-left:2px solid rgba(255,255,255,.15)">TOTAL</th>
         ${months.map(m => `<th colspan="2" style="border-left:1px solid rgba(255,255,255,.1)">${m}</th>`).join("")}
       </tr>
@@ -278,25 +292,28 @@ function render(data) {
     <tbody>`;
 
   for (const cat of data.categories) {
-    const cid   = `c_${cat.name}`;
-    const nSess = cat.sessions.length;
-    const cTot  = cat.total.assigned + cat.total.other;
-    const badge = cat.total.other > 0
+    const cid      = `c_${cat.name}`;
+    const nSess    = cat.sessions.length;
+    const cTot     = cat.total.assigned + cat.total.other;
+    const mp       = cat.match_pct ?? 0;
+    const mpClass  = mp >= 80 ? "ok" : mp >= 50 ? "mid" : "warn";
+    const asigBadge = cat.total.other > 0
       ? `<span class="badge warn">${cat.total.assigned}/${cTot} asig.</span>`
       : `<span class="badge ok">${cat.total.assigned}/${cTot} asig.</span>`;
 
     html += `<tr class="cat" onclick="toggle('${cid}', this)">
-      <td colspan="${2 + 2 + months.length * 2}">
+      <td colspan="${3 + 2 + months.length * 2}">
         <i class="arrow">▶</i>
         ${cat.name}
         <span class="badge gray">${nSess} teams</span>
-        ${badge}
+        <span class="badge ${mpClass}">${mp}% match</span>
+        ${asigBadge}
       </td>
     </tr>`;
 
     if (nSess === 0) {
       html += `<tr class="sess ${cid} hidden">
-        <td colspan="${2 + 2 + months.length * 2}" style="text-align:center;color:#aaa;font-size:12px;padding:12px">
+        <td colspan="${3 + 2 + months.length * 2}" style="text-align:center;color:#aaa;font-size:12px;padding:12px">
           No data yet — pending coach assignments or Skello export
         </td>
       </tr>`;
@@ -309,9 +326,19 @@ function render(data) {
                 <td class="num o ${m.other ? 'has' : ''} ${!m.other ? 'zero' : ''}">${m.other || ""}</td>`;
       }).join("");
 
+      // Substitute coaches under the ref coach name
+      const subs = (sess.top_substitutes || []).map(s =>
+        `<span class="sub-coach">↪ <strong>${s.coach_name}</strong> ${s.pct}%</span>`
+      ).join("");
+
+      // Match % cell colour
+      const mp = sess.match_pct ?? 0;
+      const pctClass = mp >= 80 ? "good" : mp >= 50 ? "mid" : "bad";
+
       html += `<tr class="sess ${cid} hidden">
         <td class="name">${sess.team}</td>
-        <td class="coach">${sess.ref_coach_name || "—"}</td>
+        <td class="coach">${sess.ref_coach_name || "—"}${subs}</td>
+        <td class="num pct ${pctClass}">${mp}%</td>
         <td class="num a ${!sess.total.assigned ? 'zero' : ''}">${sess.total.assigned}</td>
         <td class="num o ${sess.total.other ? 'has' : ''} ${!sess.total.other ? 'zero' : ''}">${sess.total.other}</td>
         ${moCells}

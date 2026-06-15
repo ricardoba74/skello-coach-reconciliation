@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+from collections import Counter
 from datetime import datetime
 
 try:
@@ -270,6 +271,14 @@ def reconcile(teams, sessions):
     months = sorted(sessions["month_key"].unique())
     month_labels = [datetime.strptime(m, "%Y-%m").strftime("%b %y") for m in months]
 
+    # Build coach-ID → name lookup from the teams file
+    id_to_name: dict[int, str] = {}
+    for _, row in teams.iterrows():
+        cid  = row["coach_id"]
+        name = row["coach_name"]
+        if pd.notna(cid) and name not in ("", "nan", "—", "TBC"):
+            id_to_name[int(cid)] = name
+
     result = {
         "generated_at": datetime.now().isoformat(),
         "date_range": {
@@ -284,7 +293,7 @@ def reconcile(teams, sessions):
 
     for activity in ("Academy", "Select", "GK"):
         act_sessions = sessions[sessions["activity"] == activity].copy()
-        category = {"name": activity, "total": {"assigned": 0, "other": 0}, "sessions": []}
+        category = {"name": activity, "total": {"assigned": 0, "other": 0}, "match_pct": 0, "sessions": []}
 
         bucket: dict[str, dict] = {}
         for _, sess in act_sessions.iterrows():
@@ -301,33 +310,33 @@ def reconcile(teams, sessions):
                 })
 
         for key in sorted(bucket):
-            team      = bucket[key]["team_row"]
-            ref_id    = team["coach_id"]
-            ref_name  = team["coach_name"] if team["coach_name"] not in ("", "nan") else "—"
+            team     = bucket[key]["team_row"]
+            ref_id   = team["coach_id"]
+            ref_name = team["coach_name"] if team["coach_name"] not in ("", "nan") else "—"
+            rows     = bucket[key]["rows"]
 
-            sdata = {
-                "team":           str(team["team"]),
-                "skello":         str(team["skello"]),
-                "ref_coach_id":   int(ref_id) if pd.notna(ref_id) else None,
-                "ref_coach_name": ref_name,
-                "total":          {"assigned": 0, "other": 0},
-                "months":         {m: {"assigned": 0, "other": 0} for m in months},
-                "discrepancies":  [],
-            }
+            assigned_count = 0
+            other_counts: Counter = Counter()
+            month_data   = {m: {"assigned": 0, "other": 0} for m in months}
+            discrepancies = []
 
-            for sess in bucket[key]["rows"]:
-                month      = sess["month_key"]
-                actual_id  = sess["coach_id"]
-                is_match   = (
+            for sess in rows:
+                month     = sess["month_key"]
+                actual_id = sess["coach_id"]
+                is_match  = (
                     pd.notna(ref_id) and pd.notna(actual_id)
                     and int(actual_id) == int(ref_id)
                 )
-                slot = "assigned" if is_match else "other"
-                sdata["total"][slot] += 1
-                if month in sdata["months"]:
-                    sdata["months"][month][slot] += 1
-                if not is_match:
-                    sdata["discrepancies"].append({
+                if is_match:
+                    assigned_count += 1
+                    if month in month_data:
+                        month_data[month]["assigned"] += 1
+                else:
+                    if pd.notna(actual_id):
+                        other_counts[int(actual_id)] += 1
+                    if month in month_data:
+                        month_data[month]["other"] += 1
+                    discrepancies.append({
                         "date":            sess["date"].strftime("%Y-%m-%d"),
                         "session":         sess["session"],
                         "start":           sess["start"],
@@ -335,10 +344,38 @@ def reconcile(teams, sessions):
                         "actual_coach_id": int(actual_id) if pd.notna(actual_id) else None,
                     })
 
-            category["total"]["assigned"] += sdata["total"]["assigned"]
-            category["total"]["other"]    += sdata["total"]["other"]
+            total_count = len(rows)
+            other_count = total_count - assigned_count
+            match_pct   = round(100 * assigned_count / total_count) if total_count > 0 else 0
+
+            top_substitutes = [
+                {
+                    "coach_id":   cid,
+                    "coach_name": id_to_name.get(cid, f"#{cid}"),
+                    "count":      cnt,
+                    "pct":        round(100 * cnt / total_count) if total_count > 0 else 0,
+                }
+                for cid, cnt in other_counts.most_common(2)
+            ]
+
+            sdata = {
+                "team":             str(team["team"]),
+                "skello":           str(team["skello"]),
+                "ref_coach_id":     int(ref_id) if pd.notna(ref_id) else None,
+                "ref_coach_name":   ref_name,
+                "match_pct":        match_pct,
+                "top_substitutes":  top_substitutes,
+                "total":            {"assigned": assigned_count, "other": other_count},
+                "months":           month_data,
+                "discrepancies":    discrepancies,
+            }
+
+            category["total"]["assigned"] += assigned_count
+            category["total"]["other"]    += other_count
             category["sessions"].append(sdata)
 
+        cat_total = category["total"]["assigned"] + category["total"]["other"]
+        category["match_pct"] = round(100 * category["total"]["assigned"] / cat_total) if cat_total > 0 else 0
         result["categories"].append(category)
 
     return result
