@@ -274,16 +274,31 @@ def find_team(sess_row, teams):
 
 def _session_sort_key(team_name: str):
     """
-    Sort key for team slots: (base_name, day_index, hour, minute).
-    Groups sessions by venue+age-group, then orders chronologically
-    Mon→Sat and earliest time first within each day.
+    Sort key: (venue, day_index, hour, minute, full_base).
+    - venue   → keeps all Nexus together, all Perse together, etc.
+    - day/time → chronological Mon→Sat, earliest first within each day
+    - full_base → tie-breaker when two age-groups share the same slot
     """
-    t = str(team_name).upper()
-    m = re.search(r'\b(MO|TU|WE|TH|FR|SA)(\d{2})(\d{2})\b', t)
-    if m:
-        base = str(team_name)[:m.start()].strip().upper()
-        return (base, DAY_ORDER.get(m.group(1), 99), int(m.group(2)), int(m.group(3)))
-    return (t, 99, 0, 0)
+    t = str(team_name)
+    t_up = t.upper()
+
+    # Extract the slot suffix (MO1800, SA0930, …)
+    slot_m = re.search(r'\b(MO|TU|WE|TH|FR|SA)(\d{2})(\d{2})\b', t_up)
+    if not slot_m:
+        return (t_up, t_up, 99, 0, 0)
+
+    day_idx = DAY_ORDER.get(slot_m.group(1), 99)
+    hour    = int(slot_m.group(2))
+    minute  = int(slot_m.group(3))
+
+    # Extract venue: word(s) between the type prefix and the year range
+    venue_m = re.search(r'^(?:ACADEMY|GK|SELECT)\s+(.+?)\s+\d{4}', t_up)
+    venue   = venue_m.group(1).strip() if venue_m else t_up
+
+    # Full base name (without slot) as tie-breaker for same venue+day+time
+    base = t[:slot_m.start()].strip().upper()
+
+    return (venue, day_idx, hour, minute, base)
 
 def reconcile(teams, sessions):
     months = sorted(sessions["month_key"].unique())
