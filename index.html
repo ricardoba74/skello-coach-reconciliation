@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coach Reconciliation Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #1a1a2e;
+      --slate:  #263238;
+      --mid:    #37474f;
+      --bg:     #f0f2f5;
+      --white:  #ffffff;
+      --green:  #2e7d32;
+      --green-bg: #e8f5e9;
+      --red:    #c62828;
+      --red-bg: #ffebee;
+      --amber:  #e65100;
+      --border: #e0e0e0;
+      --text:   #1a1a2e;
+      --muted:  #546e7a;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--navy);
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-meta { font-size: 12px; opacity: 0.65; }
+
+    /* ── SUMMARY STRIP ── */
+    .summary {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      gap: 32px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .stat { text-align: center; min-width: 70px; }
+    .stat .val { font-size: 26px; font-weight: 800; line-height: 1; }
+    .stat .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-top: 2px; }
+    .stat.green .val { color: var(--green); }
+    .stat.red   .val { color: var(--red); }
+    .stat.rate  .val { color: var(--navy); }
+    .summary-divider { width: 1px; height: 40px; background: var(--border); }
+
+    /* ── BANNER ── */
+    .banner {
+      padding: 10px 32px;
+      font-size: 12px;
+      display: none;
+    }
+    .banner.sample { background: #fff8e1; color: #e65100; border-bottom: 1px solid #ffe082; display: block; }
+    .banner.error  { background: var(--red-bg); color: var(--red); border-bottom: 1px solid #ef9a9a; display: block; }
+    .banner.warning{ background: #fff3e0; color: var(--amber); border-bottom: 1px solid #ffe0b2; display: block; }
+
+    /* ── MAIN TABLE ── */
+    .container { padding: 24px 32px; }
+
+    .table-wrap {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 6px rgba(0,0,0,.07);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+    }
+
+    /* Header rows */
+    thead th {
+      background: var(--slate);
+      color: #fff;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      text-align: center;
+      border-right: 1px solid rgba(255,255,255,.08);
+    }
+    thead th.left { text-align: left; }
+    thead tr.sub th {
+      background: var(--mid);
+      font-size: 10px;
+      color: #b0bec5;
+      padding: 5px 10px;
+      letter-spacing: 0.3px;
+    }
+
+    /* Category rows */
+    tbody tr.cat {
+      background: #eceff1;
+      cursor: pointer;
+      user-select: none;
+    }
+    tbody tr.cat:hover { background: #dde3e7; }
+    tbody tr.cat td {
+      padding: 11px 16px;
+      font-weight: 700;
+      font-size: 14px;
+      border-bottom: 2px solid var(--border);
+    }
+    tbody tr.cat .arrow {
+      display: inline-block;
+      margin-right: 8px;
+      transition: transform .2s;
+      font-style: normal;
+    }
+    tbody tr.cat.open .arrow { transform: rotate(90deg); }
+
+    /* Session rows */
+    tbody tr.sess { border-bottom: 1px solid #f5f5f5; }
+    tbody tr.sess:hover { background: #fafafa; }
+    tbody tr.sess td {
+      padding: 8px 12px;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+    tbody tr.sess td.name { padding-left: 36px; }
+    tbody tr.sess td.coach { font-size: 11px; color: var(--muted); font-style: italic; }
+    tbody tr.sess td.num {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      min-width: 40px;
+    }
+    td.num.a { background: var(--green-bg); color: var(--green); }
+    td.num.o { color: var(--red); }
+    td.num.o.has { background: var(--red-bg); }
+    td.num.zero { color: #bdbdbd; font-weight: 400; }
+
+    .hidden { display: none !important; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .badge.gray  { background: var(--muted); color: #fff; }
+    .badge.ok    { background: var(--green); color: #fff; }
+    .badge.warn  { background: var(--red);   color: #fff; }
+
+    /* Unmatched note */
+    .unmatched-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--amber);
+      padding: 8px 12px;
+      background: #fff3e0;
+      border-radius: var(--radius);
+    }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 64px 32px; color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Coach Reconciliation Dashboard</h1>
+    <div class="header-meta" id="date-range">—</div>
+  </div>
+  <div class="header-meta" id="gen-at"></div>
+</header>
+
+<div id="sample-banner" class="banner sample"></div>
+<div id="error-banner"  class="banner error"></div>
+<div id="warn-banner"   class="banner warning"></div>
+
+<div class="summary" id="summary">
+  <div class="stat">        <div class="val" id="s-total">—</div><div class="lbl">Total sessions</div></div>
+  <div class="summary-divider"></div>
+  <div class="stat green">  <div class="val" id="s-asig">—</div> <div class="lbl">Assigned coach</div></div>
+  <div class="stat red">    <div class="val" id="s-otro">—</div> <div class="lbl">Different coach</div></div>
+  <div class="summary-divider"></div>
+  <div class="stat rate">   <div class="val" id="s-rate">—</div> <div class="lbl">Match rate</div></div>
+</div>
+
+<div class="container">
+  <div class="table-wrap" id="table-wrap">
+    <div class="empty">Loading data…</div>
+  </div>
+  <div id="unmatched-note"></div>
+</div>
+
+<script>
+// ── DATA LOADING ─────────────────────────────────────────────────────────────
+
+async function loadData() {
+  try {
+    const r = await fetch("data/output.json");
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } catch (e) {
+    show("sample-banner",
+      "⚠  Could not load data/output.json – showing SAMPLE data. " +
+      "Run process.py to generate real data, then serve with: python -m http.server 8000");
+    return sampleData();
+  }
+}
+
+function show(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.style.display = "block"; }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+
+function render(data) {
+  // Header
+  document.getElementById("date-range").textContent =
+    `${data.date_range.from}  →  ${data.date_range.to}`;
+  document.getElementById("gen-at").textContent =
+    "Generated: " + new Date(data.generated_at).toLocaleString();
+
+  // Summary stats
+  let totA = 0, totO = 0;
+  for (const c of data.categories) { totA += c.total.assigned; totO += c.total.other; }
+  const tot  = totA + totO;
+  const rate = tot > 0 ? (100 * totA / tot).toFixed(1) : "—";
+  document.getElementById("s-total").textContent = tot;
+  document.getElementById("s-asig").textContent  = totA;
+  document.getElementById("s-otro").textContent  = totO;
+  document.getElementById("s-rate").textContent  = tot > 0 ? rate + "%" : "—";
+
+  // Unmatched note
+  const um = data.unmatched_sessions || [];
+  if (um.length) {
+    document.getElementById("unmatched-note").innerHTML =
+      `<div class="unmatched-note">⚠  ${um.length} session(s) could not be matched to a team in the planning file ` +
+      `(check Skello names – first 5: ${um.slice(0,5).map(u => u.session).join(", ")}).</div>`;
+  }
+
+  // Table
+  const months    = data.months     || [];
+  const monthKeys = data.month_keys || [];
+
+  let html = `<table>
+    <thead>
+      <tr>
+        <th class="left" rowspan="2" style="min-width:220px">Session / Team</th>
+        <th class="left" rowspan="2" style="min-width:140px">Reference Coach</th>
+        <th colspan="2" style="border-left:2px solid rgba(255,255,255,.15)">TOTAL</th>
+        ${months.map(m => `<th colspan="2" style="border-left:1px solid rgba(255,255,255,.1)">${m}</th>`).join("")}
+      </tr>
+      <tr class="sub">
+        <th style="border-left:2px solid rgba(255,255,255,.15)">Asig.</th><th>Otro</th>
+        ${months.map(() => '<th>A</th><th>O</th>').join("")}
+      </tr>
+    </thead>
+    <tbody>`;
+
+  for (const cat of data.categories) {
+    const cid   = `c_${cat.name}`;
+    const nSess = cat.sessions.length;
+    const cTot  = cat.total.assigned + cat.total.other;
+    const badge = cat.total.other > 0
+      ? `<span class="badge warn">${cat.total.assigned}/${cTot} asig.</span>`
+      : `<span class="badge ok">${cat.total.assigned}/${cTot} asig.</span>`;
+
+    html += `<tr class="cat" onclick="toggle('${cid}', this)">
+      <td colspan="${2 + 2 + months.length * 2}">
+        <i class="arrow">▶</i>
+        ${cat.name}
+        <span class="badge gray">${nSess} teams</span>
+        ${badge}
+      </td>
+    </tr>`;
+
+    if (nSess === 0) {
+      html += `<tr class="sess ${cid} hidden">
+        <td colspan="${2 + 2 + months.length * 2}" style="text-align:center;color:#aaa;font-size:12px;padding:12px">
+          No data yet — pending coach assignments or Skello export
+        </td>
+      </tr>`;
+    }
+
+    for (const sess of cat.sessions) {
+      const moCells = monthKeys.map(mk => {
+        const m = (sess.months && sess.months[mk]) || {assigned:0, other:0};
+        return `<td class="num a ${!m.assigned ? 'zero' : ''}">${m.assigned || ""}</td>
+                <td class="num o ${m.other ? 'has' : ''} ${!m.other ? 'zero' : ''}">${m.other || ""}</td>`;
+      }).join("");
+
+      html += `<tr class="sess ${cid} hidden">
+        <td class="name">${sess.team}</td>
+        <td class="coach">${sess.ref_coach_name || "—"}</td>
+        <td class="num a ${!sess.total.assigned ? 'zero' : ''}">${sess.total.assigned}</td>
+        <td class="num o ${sess.total.other ? 'has' : ''} ${!sess.total.other ? 'zero' : ''}">${sess.total.other}</td>
+        ${moCells}
+      </tr>`;
+    }
+  }
+
+  html += "</tbody></table>";
+  document.getElementById("table-wrap").innerHTML = html;
+}
+
+function toggle(cid, catRow) {
+  const rows = document.querySelectorAll(`tr.${cid}`);
+  const open = catRow.classList.contains("open");
+  catRow.classList.toggle("open", !open);
+  rows.forEach(r => r.classList.toggle("hidden", open));
+}
+
+// ── SAMPLE DATA ───────────────────────────────────────────────────────────────
+// Reflects the 36 SELECT teams found in "New info teams" + empty Academy / GK.
+// Replace this with real data by running process.py.
+
+function sampleData() {
+  const months    = ["Jan 26","Feb 26","Mar 26","Apr 26","May 26","Jun 26"];
+  const monthKeys = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06"];
+
+  const mkMonths = (rows) => {
+    // rows = [[jan_a, jan_o], [feb_a, feb_o], ...]
+    const out = {};
+    monthKeys.forEach((k,i) => out[k] = {assigned: rows[i][0], other: rows[i][1]});
+    return out;
+  };
+
+  const selectSessions = [
+    { team:"2009 10 BARÇA SPORTS DEV", coach_id:46,  coach:"ALAN MARTIN",
+      data:[[3,0],[4,1],[3,0],[3,0],[2,0],[1,0]] },
+    { team:"SELECT 2010 GROC",          coach_id:200, coach:"Carles",
+      data:[[2,0],[2,1],[2,0],[1,0],[0,0],[0,0]] },
+    { team:"2011 BARÇA SPORTS DEV",     coach_id:46,  coach:"ALAN MARTIN",
+      data:[[4,0],[4,0],[3,0],[3,0],[2,0],[1,0]] },
+    { team:"SELECT 2011 GROC",          coach_id:84,  coach:"STEVE GALLEGO",
+      data:[[3,1],[3,0],[2,1],[2,0],[0,0],[0,0]] },
+    { team:"SELECT 2011 ORANGE",        coach_id:94,  coach:"MOHAMMAD AFIQ",
+      data:[[4,0],[4,0],[3,0],[3,0],[0,0],[0,0]] },
+    { team:"SELECT 2011 GREEN",         coach_id:138, coach:"Marc Reyes Custal",
+      data:[[4,0],[3,1],[3,0],[2,0],[0,0],[0,0]] },
+    { team:"2012 BARÇA SPORTS DEV",     coach_id:33,  coach:"HADEY LATIFF",
+      data:[[4,0],[5,0],[4,0],[4,0],[2,1],[1,0]] },
+    { team:"SELECT 2012 BLAU",          coach_id:49,  coach:"OMER UQBA",
+      data:[[3,0],[3,0],[2,0],[1,0],[0,0],[0,0]] },
+    { team:"SELECT 2012 GROC",          coach_id:84,  coach:"STEVE GALLEGO",
+      data:[[3,0],[2,0],[2,0],[2,0],[0,0],[0,0]] },
+    { team:"SELECT 2012 GRANA",         coach_id:33,  coach:"HADEY LATIFF",
+      data:[[1,0],[1,0],[1,0],[0,0],[0,0],[0,0]] },
+    { team:"SELECT 2013 BLAU",          coach_id:155, coach:"Juan Badathuruge Aswin",
+      data:[[4,0],[4,0],[3,0],[3,0],[0,0],[0,0]] },
+    { team:"SELECT 2013 GRANA",         coach_id:179, coach:"Saul Ellison Katz",
+      data:[[2,1],[2,0],[2,0],[2,0],[0,0],[0,0]] },
+    { team:"2014 BARÇA SPORTS DEV SYL", coach_id:3,   coach:"MUHD YUSUF",
+      data:[[4,0],[4,0],[3,0],[0,0],[0,0],[0,0]] },
+    { team:"SELECT 2014 BLAU",          coach_id:138, coach:"Marc Reyes Custal",
+      data:[[3,0],[3,0],[2,0],[1,0],[0,0],[0,0]] },
+    { team:"SELECT 2014 ORANGE",        coach_id:84,  coach:"STEVE GALLEGO",
+      data:[[3,0],[3,0],[2,1],[2,0],[0,0],[0,0]] },
+    { team:"SELECT 2014 BLACK",         coach_id:152, coach:"Darryl Lim",
+      data:[[3,0],[2,1],[1,0],[0,0],[0,0],[0,0]] },
+    { team:"2015 BARÇA SPORTS DEV",     coach_id:150, coach:"Shahrin Bin Ahmat",
+      data:[[4,0],[4,0],[3,0],[3,0],[2,0],[1,0]] },
+    { team:"SELECT 2015 BLAU",          coach_id:53,  coach:"BENJAMIN FRANCIS",
+      data:[[4,0],[4,0],[3,0],[3,0],[0,0],[0,0]] },
+    { team:"SELECT 2015 BLACK",         coach_id:169, coach:"Dani Riaz",
+      data:[[3,0],[2,0],[2,0],[1,0],[0,0],[0,0]] },
+    { team:"SELECT 2015 GROC",          coach_id:114, coach:"DENNIS GOH",
+      data:[[3,0],[2,1],[2,0],[1,0],[0,0],[0,0]] },
+    { team:"SELECT 2015 GRANA",         coach_id:1,   coach:"MOHD SHAHARIN",
+      data:[[2,0],[2,0],[1,0],[1,0],[0,0],[0,0]] },
+  ].map(s => {
+    const total = s.data.reduce((acc,d) => ({assigned:acc.assigned+d[0], other:acc.other+d[1]}),{assigned:0,other:0});
+    return { team:s.team, ref_coach_id:s.coach_id, ref_coach_name:s.coach, total, months:mkMonths(s.data) };
+  });
+
+  const catTotal = (sessions) => sessions.reduce(
+    (acc,s) => ({assigned:acc.assigned+s.total.assigned, other:acc.other+s.total.other}),
+    {assigned:0,other:0}
+  );
+
+  return {
+    generated_at: new Date().toISOString(),
+    date_range:   { from:"2026-01-01", to:"2026-06-15" },
+    months, month_keys: monthKeys,
+    categories: [
+      { name:"Academy", total:{assigned:0,other:0},   sessions:[] },
+      { name:"Select",  total:catTotal(selectSessions), sessions:selectSessions },
+      { name:"GK",      total:{assigned:0,other:0},   sessions:[] },
+    ],
+    unmatched_sessions: [],
+  };
+}
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+
+loadData()
+  .then(render)
+  .catch(err => {
+    show("error-banner", "Dashboard error: " + err.message);
+    document.getElementById("table-wrap").innerHTML =
+      `<div class="empty">Could not render dashboard. Check console.</div>`;
+    console.error(err);
+  });
+</script>
+</body>
+</html>
