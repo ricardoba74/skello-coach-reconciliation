@@ -42,12 +42,13 @@ TEAMS_COL = {
 
 # Column positions (0-indexed) in "Data" tab
 SESSIONS_COL = {
-    "date":      5,    # F  DD/MM/YYYY
-    "session":   7,    # H  session/team name (matches col E in teams file)
-    "start":     9,    # J  HH:MM start time
-    "status":    18,   # S  "No clock in" rows excluded
-    "coach_id":  20,   # U
-    "activity":  23,   # X  Academy / Select / GK / …
+    "date":       5,   # F  DD/MM/YYYY
+    "session":    7,   # H  session/team name (matches col E in teams file)
+    "start":      9,   # J  HH:MM start time
+    "status":     18,  # S  "No clock in" rows excluded
+    "coach_id":   20,  # U  numeric ID
+    "activity":   23,  # X  Academy / Select / GK / …
+    "coach_name": 14,  # O  Full Name — used to build id→name lookup
 }
 
 # Day-code → Python weekday name (uppercase from col D suffix)
@@ -136,12 +137,13 @@ def clean_teams(raw):
 
 def clean_sessions(raw):
     df = pd.DataFrame({
-        "date":      _col(raw, SESSIONS_COL["date"]),
-        "session":   _col(raw, SESSIONS_COL["session"]),
-        "start":     _col(raw, SESSIONS_COL["start"]),
-        "status":    _col(raw, SESSIONS_COL["status"]),
-        "coach_id":  _col(raw, SESSIONS_COL["coach_id"]),
-        "activity":  _col(raw, SESSIONS_COL["activity"]),
+        "date":       _col(raw, SESSIONS_COL["date"]),
+        "session":    _col(raw, SESSIONS_COL["session"]),
+        "start":      _col(raw, SESSIONS_COL["start"]),
+        "status":     _col(raw, SESSIONS_COL["status"]),
+        "coach_id":   _col(raw, SESSIONS_COL["coach_id"]),
+        "activity":   _col(raw, SESSIONS_COL["activity"]),
+        "coach_name": _col(raw, SESSIONS_COL["coach_name"]),
     })
     df = df.map(lambda x: str(x).strip() if pd.notna(x) else "")
 
@@ -271,12 +273,19 @@ def reconcile(teams, sessions):
     months = sorted(sessions["month_key"].unique())
     month_labels = [datetime.strptime(m, "%Y-%m").strftime("%b %y") for m in months]
 
-    # Build coach-ID → name lookup from the teams file
+    # Build coach-ID → name lookup.
+    # Sessions file is the most complete source (every coach who ever worked).
+    # Teams file supplements with any remaining entries.
     id_to_name: dict[int, str] = {}
+    for _, row in sessions.iterrows():
+        cid  = row["coach_id"]
+        name = str(row.get("coach_name", "")).strip()
+        if pd.notna(cid) and name and name not in ("", "nan"):
+            id_to_name[int(cid)] = name
     for _, row in teams.iterrows():
         cid  = row["coach_id"]
         name = row["coach_name"]
-        if pd.notna(cid) and name not in ("", "nan", "—", "TBC"):
+        if pd.notna(cid) and name not in ("", "nan", "—", "TBC") and int(cid) not in id_to_name:
             id_to_name[int(cid)] = name
 
     result = {
