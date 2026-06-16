@@ -191,6 +191,65 @@
 
     /* Empty state */
     .empty { text-align: center; padding: 64px 32px; color: var(--muted); font-size: 14px; }
+
+    /* ── VIEW TOGGLE ── */
+    .view-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .view-toggle button {
+      padding: 8px 20px;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: var(--white);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .view-toggle button.active {
+      background: var(--navy);
+      color: #fff;
+      border-color: var(--navy);
+    }
+    .view-toggle button:hover:not(.active) { background: #eceff1; }
+
+    /* ── TERM VIEW ── */
+    .term-table th.wk-hdr { min-width: 54px; text-align: center; }
+    .wk-cell {
+      text-align: center;
+      vertical-align: middle;
+      padding: 5px 6px !important;
+      min-width: 54px;
+    }
+    .tick-item {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin: 1px;
+      cursor: default;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+    .tick-item.yes  { background: var(--green-bg); color: var(--green); }
+    .tick-item.no   { background: var(--red-bg);   color: var(--red); }
+    .wk-cell.empty  { color: #e0e0e0; font-size: 18px; letter-spacing: -1px; }
+    .total-cell {
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+      min-width: 64px;
+      padding: 8px 10px !important;
+    }
+    .total-cell small { display: block; font-weight: 400; font-size: 10px; margin-top: 1px; }
+    .total-cell.good  { background: var(--green-bg); color: var(--green); }
+    .total-cell.mid   { background: #fff8e1; color: #e65100; }
+    .total-cell.bad   { background: var(--red-bg); color: var(--red); }
   </style>
 </head>
 <body>
@@ -217,10 +276,25 @@
 </div>
 
 <div class="container">
-  <div class="table-wrap" id="table-wrap">
-    <div class="empty">Loading data…</div>
+
+  <div class="view-toggle">
+    <button id="btn-monthly" class="active" onclick="switchView('monthly')">Vista Mensual</button>
+    <button id="btn-term" onclick="switchView('term')">Vista Sesiones (Término)</button>
   </div>
-  <div id="unmatched-note"></div>
+
+  <div id="view-monthly">
+    <div class="table-wrap" id="table-wrap">
+      <div class="empty">Loading data…</div>
+    </div>
+    <div id="unmatched-note"></div>
+  </div>
+
+  <div id="view-term" class="hidden">
+    <div class="table-wrap" id="term-table-wrap">
+      <div class="empty">Loading term data…</div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -438,6 +512,106 @@ function sampleData() {
   };
 }
 
+// ── TERM VIEW ────────────────────────────────────────────────────────────────
+
+async function loadTermData() {
+  try {
+    const r = await fetch("data/term_output.json");
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } catch(e) {
+    document.getElementById("term-table-wrap").innerHTML =
+      `<div class="empty">No hay datos de término disponibles. Ejecuta process.py para generarlos.</div>`;
+    return null;
+  }
+}
+
+function renderTerm(data) {
+  if (!data) return;
+  const weeks = data.weeks || [];
+
+  let html = `<table class="term-table">
+    <thead>
+      <tr>
+        <th class="left" rowspan="2" style="min-width:220px">Session / Team</th>
+        <th class="left" rowspan="2" style="min-width:160px">Entrenador Titular</th>
+        ${weeks.map(w => `<th class="wk-hdr">${w.label}</th>`).join("")}
+        <th rowspan="2" style="min-width:68px">Total</th>
+      </tr>
+      <tr class="sub">
+        ${weeks.map(w => `<th style="font-size:9px;padding:3px 4px">${w.dates}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>`;
+
+  for (const cat of data.categories) {
+    const cid = `tc_${cat.name}`;
+    const nSess = cat.sessions.length;
+
+    let catAssigned = 0, catTotal = 0;
+    for (const s of cat.sessions) {
+      catAssigned += s.total_assigned || 0;
+      catTotal    += s.total_sessions || 0;
+    }
+    const mp = catTotal > 0 ? Math.round(100 * catAssigned / catTotal) : 0;
+    const mpClass = mp >= 80 ? "ok" : mp >= 50 ? "mid" : "warn";
+
+    html += `<tr class="cat" onclick="toggle('${cid}', this)">
+      <td colspan="${2 + weeks.length + 1}">
+        <i class="arrow">▶</i>
+        ${cat.name}
+        <span class="badge gray">${nSess} equipos</span>
+        <span class="badge ${mpClass}">${mp}% match</span>
+      </td>
+    </tr>`;
+
+    if (nSess === 0) {
+      html += `<tr class="sess ${cid} hidden">
+        <td colspan="${2 + weeks.length + 1}" style="text-align:center;color:#aaa;font-size:12px;padding:12px">
+          Sin datos para este término
+        </td>
+      </tr>`;
+    }
+
+    for (const sess of cat.sessions) {
+      const weekCells = (sess.by_week || []).map(weekSessions => {
+        if (!weekSessions || weekSessions.length === 0) {
+          return `<td class="wk-cell empty">·</td>`;
+        }
+        const items = weekSessions.map(s => {
+          const cls  = s.assigned ? "yes" : "no";
+          const icon = s.assigned ? "✓" : "✗";
+          const tip  = s.actual_coach ? ` title="${s.actual_coach}"` : "";
+          return `<span class="tick-item ${cls}"${tip}>${s.day}${icon}</span>`;
+        }).join("");
+        return `<td class="wk-cell">${items}</td>`;
+      }).join("");
+
+      const totSess     = sess.total_sessions || 0;
+      const totAssigned = sess.total_assigned  || 0;
+      const rate        = totSess > 0 ? Math.round(100 * totAssigned / totSess) : 0;
+      const rateClass   = rate >= 80 ? "good" : rate >= 50 ? "mid" : "bad";
+
+      html += `<tr class="sess ${cid} hidden">
+        <td class="name">${sess.team}</td>
+        <td class="coach">${sess.ref_coach_name || "—"}</td>
+        ${weekCells}
+        <td class="num total-cell ${rateClass}">${totAssigned}/${totSess}<small>${rate}%</small></td>
+      </tr>`;
+    }
+  }
+
+  html += "</tbody></table>";
+  document.getElementById("term-table-wrap").innerHTML = html;
+}
+
+function switchView(v) {
+  document.getElementById("view-monthly").classList.toggle("hidden", v !== "monthly");
+  document.getElementById("view-term").classList.toggle("hidden", v !== "term");
+  document.getElementById("btn-monthly").classList.toggle("active", v === "monthly");
+  document.getElementById("btn-term").classList.toggle("active", v === "term");
+}
+
 // ── BOOT ─────────────────────────────────────────────────────────────────────
 
 loadData()
@@ -448,6 +622,8 @@ loadData()
       `<div class="empty">Could not render dashboard. Check console.</div>`;
     console.error(err);
   });
+
+loadTermData().then(data => { if (data) renderTerm(data); });
 </script>
 </body>
 </html>

@@ -60,6 +60,16 @@ DAY_MAP = {
 # Day-code → chronological index for sorting (Mon first, Sat last)
 DAY_ORDER = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5}
 
+# Term view: fixed date range (12 weeks)
+TERM_START = datetime(2026, 4, 20)   # Monday week 1
+TERM_END   = datetime(2026, 7, 12)   # Sunday week 12
+
+# Day-of-week → short label (Spanish, X for Wed to avoid clash with M)
+DAY_ABBR = {
+    "Monday": "L", "Tuesday": "M", "Wednesday": "X",
+    "Thursday": "J", "Friday": "V", "Saturday": "S",
+}
+
 
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
 
@@ -421,6 +431,132 @@ def reconcile(teams, sessions):
     return result
 
 
+# ── TERM RECONCILIATION ───────────────────────────────────────────────────────
+
+def reconcile_term(teams, sessions):
+    """
+    Session-by-session view for the term (TERM_START – TERM_END).
+    Returns 12 week columns; each team cell shows ✓/✗ per actual session.
+    """
+    from datetime import timedelta
+
+    # Build 12 week descriptors
+    MONTHS_ES = {1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",
+                 7:"Jul",8:"Ago",9:"Sep",10:"Oct",11:"Nov",12:"Dic"}
+    weeks = []
+    for i in range(12):
+        ws = TERM_START + timedelta(weeks=i)
+        we = ws + timedelta(days=6)
+        label = (f"{ws.day} {MONTHS_ES[ws.month]}"
+                 if ws.month == we.month
+                 else f"{ws.day} {MONTHS_ES[ws.month]}–{we.day} {MONTHS_ES[we.month]}")
+        weeks.append({"num": i + 1, "label": f"S{i+1}", "dates": label,
+                      "start": ws, "end": we})
+
+    # Build coach id→name lookup from sessions first, then teams
+    id_to_name: dict[int, str] = {}
+    for _, row in sessions.iterrows():
+        cid  = row["coach_id"]
+        name = str(row.get("coach_name", "")).strip()
+        if pd.notna(cid) and name and name not in ("", "nan"):
+            id_to_name[int(cid)] = name
+    for _, row in teams.iterrows():
+        cid  = row["coach_id"]
+        name = row["coach_name"]
+        if pd.notna(cid) and name not in ("", "nan", "—", "TBC") and int(cid) not in id_to_name:
+            id_to_name[int(cid)] = name
+
+    # Filter sessions to term range
+    term_sess = sessions[
+        (sessions["date"] >= pd.Timestamp(TERM_START)) &
+        (sessions["date"] <= pd.Timestamp(TERM_END))
+    ].copy()
+
+    result = {
+        "generated_at": datetime.now().isoformat(),
+        "term":  {"from": TERM_START.strftime("%Y-%m-%d"),
+                  "to":   TERM_END.strftime("%Y-%m-%d")},
+        "weeks": [{"num": w["num"], "label": w["label"], "dates": w["dates"]}
+                  for w in weeks],
+        "categories":         [],
+        "unmatched_sessions": [],
+    }
+
+    for activity in ("Academy", "Select", "GK"):
+        act_sess = term_sess[term_sess["activity"] == activity].copy()
+        category = {"name": activity, "sessions": []}
+
+        bucket: dict[str, dict] = {}
+        for _, sess in act_sess.iterrows():
+            team = find_team(sess, teams)
+            if team is not None:
+                key = str(team["team"])
+                bucket.setdefault(key, {"team_row": team, "rows": []})["rows"].append(sess)
+            else:
+                result["unmatched_sessions"].append({
+                    "date":     sess["date"].strftime("%Y-%m-%d"),
+                    "session":  sess["session"],
+                    "activity": activity,
+                })
+
+        for key in sorted(bucket, key=_session_sort_key):
+            team     = bucket[key]["team_row"]
+            ref_id   = team["coach_id"]
+            ref_name = team["coach_name"] if team["coach_name"] not in ("", "nan") else "—"
+            rows     = bucket[key]["rows"]
+
+            # Group rows by date — one entry per actual session date, not per coach
+            date_groups: dict = {}
+            for sess in rows:
+                date_groups.setdefault(sess["date"], []).append(sess)
+
+            # Build by_week: 12 slots, each a list of session results
+            by_week = [[] for _ in range(12)]
+            total_assigned = 0
+
+            for sess_date in sorted(date_groups.keys()):
+                date_rows = date_groups[sess_date]
+                sess_dt   = sess_date.to_pydatetime()
+
+                # ✓ if ref coach was among the attendees that day
+                matching = [r for r in date_rows
+                            if pd.notna(ref_id) and pd.notna(r["coach_id"])
+                            and int(r["coach_id"]) == int(ref_id)]
+                is_match = len(matching) > 0
+                if is_match:
+                    total_assigned += 1
+                    actual_id = matching[0]["coach_id"]
+                else:
+                    actual_id = date_rows[0]["coach_id"]
+
+                actual_name = (id_to_name.get(int(actual_id), f"#{int(actual_id)}")
+                               if pd.notna(actual_id) else "—")
+
+                for i, w in enumerate(weeks):
+                    if w["start"] <= sess_dt <= w["end"]:
+                        by_week[i].append({
+                            "date":         sess_dt.strftime("%d/%m"),
+                            "day":          DAY_ABBR.get(date_rows[0]["day_of_week"], "?"),
+                            "assigned":     bool(is_match),
+                            "actual_coach": actual_name,
+                        })
+                        break
+
+            sdata = {
+                "team":           str(team["team"]),
+                "ref_coach_id":   int(ref_id) if pd.notna(ref_id) else None,
+                "ref_coach_name": ref_name,
+                "total_sessions": len(date_groups),
+                "total_assigned": total_assigned,
+                "by_week":        by_week,
+            }
+            category["sessions"].append(sdata)
+
+        result["categories"].append(category)
+
+    return result
+
+
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -461,6 +597,22 @@ def main():
     with open(out, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
     print(f"Saved → {out}")
+
+    print(f"Reconciling term view ({TERM_START:%d %b} – {TERM_END:%d %b}) …")
+    term_result = reconcile_term(teams, sessions)
+    term_counts = sum(
+        s["total_sessions"] for c in term_result["categories"] for s in c["sessions"]
+    )
+    term_assigned = sum(
+        s["total_assigned"] for c in term_result["categories"] for s in c["sessions"]
+    )
+    term_rate = round(100 * term_assigned / term_counts) if term_counts else 0
+    print(f"  {term_counts} sessions → {term_assigned} assigned ({term_rate}% match)")
+
+    term_out = "data/term_output.json"
+    with open(term_out, "w", encoding="utf-8") as f:
+        json.dump(term_result, f, indent=2, ensure_ascii=False)
+    print(f"Saved → {term_out}")
 
 
 if __name__ == "__main__":

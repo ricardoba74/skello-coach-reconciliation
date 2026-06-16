@@ -3,6 +3,7 @@ credentials.json
 __pycache__/
 .DS_Store
 data/output.json
+data/term_output.json
 data/sessions.csv
 .claude/
 .playwright-mcp/
