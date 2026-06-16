@@ -8,20 +8,20 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --navy:   #1a1a2e;
-      --slate:  #263238;
-      --mid:    #37474f;
-      --bg:     #f0f2f5;
-      --white:  #ffffff;
-      --green:  #2e7d32;
+      --navy:     #1a1a2e;
+      --slate:    #263238;
+      --mid:      #37474f;
+      --bg:       #f0f2f5;
+      --white:    #ffffff;
+      --green:    #2e7d32;
       --green-bg: #e8f5e9;
-      --red:    #c62828;
-      --red-bg: #ffebee;
-      --amber:  #e65100;
-      --border: #e0e0e0;
-      --text:   #1a1a2e;
-      --muted:  #546e7a;
-      --radius: 8px;
+      --red:      #c62828;
+      --red-bg:   #ffebee;
+      --amber:    #e65100;
+      --border:   #e0e0e0;
+      --text:     #1a1a2e;
+      --muted:    #546e7a;
+      --radius:   8px;
     }
 
     body {
@@ -43,6 +43,84 @@
     }
     header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
     .header-meta { font-size: 12px; opacity: 0.65; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+
+    .settings-btn {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.22);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    .settings-btn:hover { background: rgba(255,255,255,.22); }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 28px 32px;
+      width: 400px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.22);
+    }
+    .modal-box h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .modal-box p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+    .modal-box label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .modal-box label + label, .modal-lbl-gap { margin-top: 14px; }
+    .modal-box input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .modal-box input:focus { border-color: var(--navy); }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 22px;
+    }
+    .modal-actions button {
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--text);
+      transition: background .15s;
+    }
+    .modal-actions button:hover { background: #f5f5f5; }
+    .btn-primary {
+      background: var(--navy) !important;
+      color: #fff !important;
+      border-color: var(--navy) !important;
+    }
+    .btn-primary:hover { background: #263170 !important; }
 
     /* ── SUMMARY STRIP ── */
     .summary {
@@ -63,14 +141,9 @@
     .summary-divider { width: 1px; height: 40px; background: var(--border); }
 
     /* ── BANNER ── */
-    .banner {
-      padding: 10px 32px;
-      font-size: 12px;
-      display: none;
-    }
-    .banner.sample { background: #fff8e1; color: #e65100; border-bottom: 1px solid #ffe082; display: block; }
-    .banner.error  { background: var(--red-bg); color: var(--red); border-bottom: 1px solid #ef9a9a; display: block; }
-    .banner.warning{ background: #fff3e0; color: var(--amber); border-bottom: 1px solid #ffe0b2; display: block; }
+    .banner { padding: 10px 32px; font-size: 12px; display: none; }
+    .banner.error   { background: var(--red-bg); color: var(--red); border-bottom: 1px solid #ef9a9a; }
+    .banner.warning { background: #fff3e0; color: var(--amber); border-bottom: 1px solid #ffe0b2; }
 
     /* ── MAIN TABLE ── */
     .container { padding: 24px 32px; }
@@ -85,10 +158,9 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 680px;
+      min-width: 900px;
     }
 
-    /* Header rows */
     thead th {
       background: var(--slate);
       color: #fff;
@@ -132,40 +204,16 @@
     /* Session rows */
     tbody tr.sess { border-bottom: 1px solid #f5f5f5; }
     tbody tr.sess:hover { background: #fafafa; }
-    tbody tr.sess td {
-      padding: 8px 12px;
-      font-size: 13px;
-      vertical-align: middle;
-    }
-    tbody tr.sess td.name { padding-left: 36px; }
+    tbody tr.sess td { padding: 8px 12px; font-size: 13px; vertical-align: middle; }
+    tbody tr.sess td.name  { padding-left: 36px; }
     tbody tr.sess td.coach { font-size: 11px; color: var(--muted); font-style: italic; }
-    tbody tr.sess td.num {
-      text-align: center;
-      font-size: 13px;
-      font-weight: 600;
-      min-width: 40px;
-    }
-    td.num.a { background: var(--green-bg); color: var(--green); }
-    td.num.o { color: var(--red); }
-    td.num.o.has { background: var(--red-bg); }
-    td.num.zero { color: #bdbdbd; font-weight: 400; }
+    tbody tr.sess td.num   { text-align: center; font-size: 13px; font-weight: 600; min-width: 40px; }
 
-    /* Match % cell */
-    td.num.pct { min-width: 58px; font-size: 13px; font-weight: 700; }
-    td.num.pct.good { background: var(--green-bg); color: var(--green); }
-    td.num.pct.mid  { background: #fff8e1; color: #e65100; }
-    td.num.pct.bad  { background: var(--red-bg); color: var(--red); }
-
-    /* Substitute coaches under ref name */
     .sub-coach { display: block; font-size: 10px; color: var(--muted); font-style: normal; margin-top: 2px; }
     .sub-coach strong { font-weight: 600; color: var(--text); }
 
-    /* Amber badge for category match % */
-    .badge.mid { background: #e65100; color: #fff; }
-
     .hidden { display: none !important; }
 
-    /* Badges */
     .badge {
       display: inline-block;
       border-radius: 10px;
@@ -175,49 +223,16 @@
       margin-left: 6px;
       vertical-align: middle;
     }
-    .badge.gray  { background: var(--muted); color: #fff; }
-    .badge.ok    { background: var(--green); color: #fff; }
-    .badge.warn  { background: var(--red);   color: #fff; }
+    .badge.gray { background: var(--muted); color: #fff; }
+    .badge.ok   { background: var(--green); color: #fff; }
+    .badge.mid  { background: #e65100;      color: #fff; }
+    .badge.warn { background: var(--red);   color: #fff; }
 
-    /* Unmatched note */
-    .unmatched-note {
-      margin-top: 12px;
-      font-size: 12px;
-      color: var(--amber);
-      padding: 8px 12px;
-      background: #fff3e0;
-      border-radius: var(--radius);
-    }
-
-    /* Empty state */
     .empty { text-align: center; padding: 64px 32px; color: var(--muted); font-size: 14px; }
 
-    /* ── VIEW TOGGLE ── */
-    .view-toggle {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 16px;
-    }
-    .view-toggle button {
-      padding: 8px 20px;
-      border: 1.5px solid var(--border);
-      border-radius: 20px;
-      background: var(--white);
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all .15s;
-    }
-    .view-toggle button.active {
-      background: var(--navy);
-      color: #fff;
-      border-color: var(--navy);
-    }
-    .view-toggle button:hover:not(.active) { background: #eceff1; }
-
-    /* ── TERM VIEW ── */
+    /* ── TERM TABLE ── */
     .term-table th.wk-hdr { min-width: 54px; text-align: center; }
+
     .wk-cell {
       text-align: center;
       vertical-align: middle;
@@ -235,9 +250,10 @@
       white-space: nowrap;
       line-height: 1.4;
     }
-    .tick-item.yes  { background: var(--green-bg); color: var(--green); }
-    .tick-item.no   { background: var(--red-bg);   color: var(--red); }
-    .wk-cell.empty  { color: #e0e0e0; font-size: 18px; letter-spacing: -1px; }
+    .tick-item.yes { background: var(--green-bg); color: var(--green); }
+    .tick-item.no  { background: var(--red-bg);   color: var(--red); }
+    .wk-cell.empty { color: #e0e0e0; font-size: 18px; }
+
     .total-cell {
       text-align: center;
       font-weight: 700;
@@ -247,9 +263,30 @@
       padding: 8px 10px !important;
     }
     .total-cell small { display: block; font-weight: 400; font-size: 10px; margin-top: 1px; }
-    .total-cell.good  { background: var(--green-bg); color: var(--green); }
-    .total-cell.mid   { background: #fff8e1; color: #e65100; }
-    .total-cell.bad   { background: var(--red-bg); color: var(--red); }
+    .total-cell.good { background: var(--green-bg); color: var(--green); }
+    .total-cell.mid  { background: #fff8e1; color: #e65100; }
+    .total-cell.bad  { background: var(--red-bg); color: var(--red); }
+
+    /* ── COMMENTS ── */
+    .comment-col { min-width: 200px; padding: 6px 10px !important; }
+    .comment-cell {
+      width: 100%;
+      min-height: 42px;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      color: var(--text);
+      resize: vertical;
+      background: transparent;
+      transition: border-color .15s, background .15s;
+      line-height: 1.45;
+    }
+    .comment-cell:hover  { border-color: var(--border); background: #fafafa; }
+    .comment-cell:focus  { border-color: var(--navy); background: var(--white); outline: none; }
+    .comment-cell:disabled { color: #bdbdbd; cursor: not-allowed; font-style: italic; }
+    .comment-cell::placeholder { color: #bdbdbd; }
   </style>
 </head>
 <body>
@@ -259,169 +296,126 @@
     <h1>Coach Reconciliation Dashboard</h1>
     <div class="header-meta" id="date-range">—</div>
   </div>
-  <div class="header-meta" id="gen-at"></div>
+  <div class="header-right">
+    <button class="settings-btn" onclick="openSettings()">⚙ Comments</button>
+    <div class="header-meta" id="gen-at"></div>
+  </div>
 </header>
 
-<div id="sample-banner" class="banner sample"></div>
-<div id="error-banner"  class="banner error"></div>
-<div id="warn-banner"   class="banner warning"></div>
+<!-- Settings modal -->
+<div id="settings-overlay" class="modal-overlay hidden" onclick="closeIfOverlay(event)">
+  <div class="modal-box">
+    <h3>Comments Settings</h3>
+    <p>
+      Comments are stored in <strong>JSONBin.io</strong> and shared across
+      your team. Create a free account at jsonbin.io, create a new bin, and
+      paste your credentials below.
+    </p>
+    <label>Bin ID</label>
+    <input id="inp-bin-id" type="text" placeholder="64abc...xyz" autocomplete="off" />
+    <div class="modal-lbl-gap"></div>
+    <label>Master Key <span style="font-weight:400;font-size:10px">(starts with $2b$)</span></label>
+    <input id="inp-bin-key" type="password" placeholder="$2b$10$…" autocomplete="off" />
+    <div class="modal-actions">
+      <button onclick="closeSettings()">Cancel</button>
+      <button class="btn-primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="error-banner" class="banner error"></div>
+<div id="warn-banner"  class="banner warning"></div>
 
 <div class="summary" id="summary">
-  <div class="stat">        <div class="val" id="s-total">—</div><div class="lbl">Total sessions</div></div>
+  <div class="stat">       <div class="val" id="s-total">—</div><div class="lbl">Sessions (term)</div></div>
   <div class="summary-divider"></div>
-  <div class="stat green">  <div class="val" id="s-asig">—</div> <div class="lbl">Assigned coach</div></div>
-  <div class="stat red">    <div class="val" id="s-otro">—</div> <div class="lbl">Different coach</div></div>
+  <div class="stat green"> <div class="val" id="s-asig">—</div> <div class="lbl">Assigned coach</div></div>
+  <div class="stat red">   <div class="val" id="s-otro">—</div> <div class="lbl">Different coach</div></div>
   <div class="summary-divider"></div>
-  <div class="stat rate">   <div class="val" id="s-rate">—</div> <div class="lbl">Match rate</div></div>
+  <div class="stat rate">  <div class="val" id="s-rate">—</div> <div class="lbl">Match rate</div></div>
 </div>
 
 <div class="container">
-
-  <div class="view-toggle">
-    <button id="btn-monthly" class="active" onclick="switchView('monthly')">Vista Mensual</button>
-    <button id="btn-term" onclick="switchView('term')">Vista Sesiones (Término)</button>
+  <div class="table-wrap" id="term-table-wrap">
+    <div class="empty">Loading…</div>
   </div>
-
-  <div id="view-monthly">
-    <div class="table-wrap" id="table-wrap">
-      <div class="empty">Loading data…</div>
-    </div>
-    <div id="unmatched-note"></div>
-  </div>
-
-  <div id="view-term" class="hidden">
-    <div class="table-wrap" id="term-table-wrap">
-      <div class="empty">Loading term data…</div>
-    </div>
-  </div>
-
 </div>
 
 <script>
-// ── DATA LOADING ─────────────────────────────────────────────────────────────
+// ── JSONBIN CONFIG ────────────────────────────────────────────────────────────
+const JSONBIN_BASE = "https://api.jsonbin.io/v3/b";
+const getBinId  = () => localStorage.getItem("jb_id")  || "";
+const getBinKey = () => localStorage.getItem("jb_key") || "";
 
-async function loadData() {
+// ── COMMENTS ─────────────────────────────────────────────────────────────────
+let comments = {};
+
+async function loadComments() {
+  const id = getBinId();
+  if (!id) return;
   try {
-    const r = await fetch("data/output.json");
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json();
-  } catch (e) {
-    show("sample-banner",
-      "⚠  Could not load data/output.json – showing SAMPLE data. " +
-      "Run process.py to generate real data, then serve with: python -m http.server 8000");
-    return sampleData();
-  }
+    const headers = {};
+    const key = getBinKey();
+    if (key) headers["X-Master-Key"] = key;
+    const r = await fetch(`${JSONBIN_BASE}/${id}/latest`, { headers });
+    if (!r.ok) { console.warn("JSONBin read failed:", r.status); return; }
+    const data = await r.json();
+    comments = data.record || {};
+  } catch(e) { console.warn("Could not load comments:", e.message); }
 }
 
+async function saveComment(teamKey, text) {
+  if (text === (comments[teamKey] || "")) return; // no change
+  comments[teamKey] = text;
+  // Persist locally always (fast fallback)
+  localStorage.setItem("comments_local", JSON.stringify(comments));
+  const id  = getBinId();
+  const key = getBinKey();
+  if (!id || !key) return;
+  try {
+    await fetch(`${JSONBIN_BASE}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-Master-Key": key },
+      body: JSON.stringify(comments),
+    });
+  } catch(e) { console.warn("Could not save comment:", e.message); }
+}
+
+function fillCommentCells() {
+  // Prefer JSONBin data; fall back to local cache
+  const local = JSON.parse(localStorage.getItem("comments_local") || "{}");
+  const merged = Object.assign({}, local, comments);
+  document.querySelectorAll(".comment-cell[data-team]").forEach(el => {
+    el.value = merged[el.dataset.team] || "";
+    // Enable/disable based on whether bin is configured
+    el.disabled = getBinId() === "";
+    el.placeholder = getBinId() ? "Add a comment…" : "Configure ⚙ to enable comments";
+  });
+}
+
+// ── SETTINGS MODAL ───────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById("inp-bin-id").value  = getBinId();
+  document.getElementById("inp-bin-key").value = getBinKey();
+  document.getElementById("settings-overlay").classList.remove("hidden");
+}
+function closeSettings() {
+  document.getElementById("settings-overlay").classList.add("hidden");
+}
+function closeIfOverlay(e) {
+  if (e.target.id === "settings-overlay") closeSettings();
+}
+function saveSettings() {
+  localStorage.setItem("jb_id",  document.getElementById("inp-bin-id").value.trim());
+  localStorage.setItem("jb_key", document.getElementById("inp-bin-key").value.trim());
+  closeSettings();
+  loadComments().then(fillCommentCells);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
 function show(id, msg) {
   const el = document.getElementById(id);
   if (el) { el.textContent = msg; el.style.display = "block"; }
-}
-
-// ── RENDER ────────────────────────────────────────────────────────────────────
-
-function render(data) {
-  // Header
-  document.getElementById("date-range").textContent =
-    `${data.date_range.from}  →  ${data.date_range.to}`;
-  document.getElementById("gen-at").textContent =
-    "Generated: " + new Date(data.generated_at).toLocaleString();
-
-  // Summary stats
-  let totA = 0, totO = 0;
-  for (const c of data.categories) { totA += c.total.assigned; totO += c.total.other; }
-  const tot  = totA + totO;
-  const rate = tot > 0 ? (100 * totA / tot).toFixed(1) : "—";
-  document.getElementById("s-total").textContent = tot;
-  document.getElementById("s-asig").textContent  = totA;
-  document.getElementById("s-otro").textContent  = totO;
-  document.getElementById("s-rate").textContent  = tot > 0 ? rate + "%" : "—";
-
-  // Unmatched note
-  const um = data.unmatched_sessions || [];
-  if (um.length) {
-    document.getElementById("unmatched-note").innerHTML =
-      `<div class="unmatched-note">⚠  ${um.length} session(s) could not be matched to a team in the planning file ` +
-      `(check Skello names – first 5: ${um.slice(0,5).map(u => u.session).join(", ")}).</div>`;
-  }
-
-  // Table
-  const months    = data.months     || [];
-  const monthKeys = data.month_keys || [];
-
-  let html = `<table>
-    <thead>
-      <tr>
-        <th class="left" rowspan="2" style="min-width:220px">Session / Team</th>
-        <th class="left" rowspan="2" style="min-width:160px">Reference Coach</th>
-        <th rowspan="2" style="min-width:64px">Match %</th>
-        <th colspan="2" style="border-left:2px solid rgba(255,255,255,.15)">TOTAL</th>
-        ${months.map(m => `<th colspan="2" style="border-left:1px solid rgba(255,255,255,.1)">${m}</th>`).join("")}
-      </tr>
-      <tr class="sub">
-        <th style="border-left:2px solid rgba(255,255,255,.15)">Asig.</th><th>Otro</th>
-        ${months.map(() => '<th>A</th><th>O</th>').join("")}
-      </tr>
-    </thead>
-    <tbody>`;
-
-  for (const cat of data.categories) {
-    const cid      = `c_${cat.name}`;
-    const nSess    = cat.sessions.length;
-    const cTot     = cat.total.assigned + cat.total.other;
-    const mp       = cat.match_pct ?? 0;
-    const mpClass  = mp >= 80 ? "ok" : mp >= 50 ? "mid" : "warn";
-    const asigBadge = cat.total.other > 0
-      ? `<span class="badge warn">${cat.total.assigned}/${cTot} asig.</span>`
-      : `<span class="badge ok">${cat.total.assigned}/${cTot} asig.</span>`;
-
-    html += `<tr class="cat" onclick="toggle('${cid}', this)">
-      <td colspan="${3 + 2 + months.length * 2}">
-        <i class="arrow">▶</i>
-        ${cat.name}
-        <span class="badge gray">${nSess} teams</span>
-        <span class="badge ${mpClass}">${mp}% match</span>
-        ${asigBadge}
-      </td>
-    </tr>`;
-
-    if (nSess === 0) {
-      html += `<tr class="sess ${cid} hidden">
-        <td colspan="${3 + 2 + months.length * 2}" style="text-align:center;color:#aaa;font-size:12px;padding:12px">
-          No data yet — pending coach assignments or Skello export
-        </td>
-      </tr>`;
-    }
-
-    for (const sess of cat.sessions) {
-      const moCells = monthKeys.map(mk => {
-        const m = (sess.months && sess.months[mk]) || {assigned:0, other:0};
-        return `<td class="num a ${!m.assigned ? 'zero' : ''}">${m.assigned || ""}</td>
-                <td class="num o ${m.other ? 'has' : ''} ${!m.other ? 'zero' : ''}">${m.other || ""}</td>`;
-      }).join("");
-
-      // Substitute coaches under the ref coach name
-      const subs = (sess.top_substitutes || []).map(s =>
-        `<span class="sub-coach">↪ <strong>${s.coach_name}</strong> ${s.pct}%</span>`
-      ).join("");
-
-      // Match % cell colour
-      const mp = sess.match_pct ?? 0;
-      const pctClass = mp >= 80 ? "good" : mp >= 50 ? "mid" : "bad";
-
-      html += `<tr class="sess ${cid} hidden">
-        <td class="name">${sess.team}</td>
-        <td class="coach">${sess.ref_coach_name || "—"}${subs}</td>
-        <td class="num pct ${pctClass}">${mp}%</td>
-        <td class="num a ${!sess.total.assigned ? 'zero' : ''}">${sess.total.assigned}</td>
-        <td class="num o ${sess.total.other ? 'has' : ''} ${!sess.total.other ? 'zero' : ''}">${sess.total.other}</td>
-        ${moCells}
-      </tr>`;
-    }
-  }
-
-  html += "</tbody></table>";
-  document.getElementById("table-wrap").innerHTML = html;
 }
 
 function toggle(cid, catRow) {
@@ -431,89 +425,7 @@ function toggle(cid, catRow) {
   rows.forEach(r => r.classList.toggle("hidden", open));
 }
 
-// ── SAMPLE DATA ───────────────────────────────────────────────────────────────
-// Reflects the 36 SELECT teams found in "New info teams" + empty Academy / GK.
-// Replace this with real data by running process.py.
-
-function sampleData() {
-  const months    = ["Jan 26","Feb 26","Mar 26","Apr 26","May 26","Jun 26"];
-  const monthKeys = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06"];
-
-  const mkMonths = (rows) => {
-    // rows = [[jan_a, jan_o], [feb_a, feb_o], ...]
-    const out = {};
-    monthKeys.forEach((k,i) => out[k] = {assigned: rows[i][0], other: rows[i][1]});
-    return out;
-  };
-
-  const selectSessions = [
-    { team:"2009 10 BARÇA SPORTS DEV", coach_id:46,  coach:"ALAN MARTIN",
-      data:[[3,0],[4,1],[3,0],[3,0],[2,0],[1,0]] },
-    { team:"SELECT 2010 GROC",          coach_id:200, coach:"Carles",
-      data:[[2,0],[2,1],[2,0],[1,0],[0,0],[0,0]] },
-    { team:"2011 BARÇA SPORTS DEV",     coach_id:46,  coach:"ALAN MARTIN",
-      data:[[4,0],[4,0],[3,0],[3,0],[2,0],[1,0]] },
-    { team:"SELECT 2011 GROC",          coach_id:84,  coach:"STEVE GALLEGO",
-      data:[[3,1],[3,0],[2,1],[2,0],[0,0],[0,0]] },
-    { team:"SELECT 2011 ORANGE",        coach_id:94,  coach:"MOHAMMAD AFIQ",
-      data:[[4,0],[4,0],[3,0],[3,0],[0,0],[0,0]] },
-    { team:"SELECT 2011 GREEN",         coach_id:138, coach:"Marc Reyes Custal",
-      data:[[4,0],[3,1],[3,0],[2,0],[0,0],[0,0]] },
-    { team:"2012 BARÇA SPORTS DEV",     coach_id:33,  coach:"HADEY LATIFF",
-      data:[[4,0],[5,0],[4,0],[4,0],[2,1],[1,0]] },
-    { team:"SELECT 2012 BLAU",          coach_id:49,  coach:"OMER UQBA",
-      data:[[3,0],[3,0],[2,0],[1,0],[0,0],[0,0]] },
-    { team:"SELECT 2012 GROC",          coach_id:84,  coach:"STEVE GALLEGO",
-      data:[[3,0],[2,0],[2,0],[2,0],[0,0],[0,0]] },
-    { team:"SELECT 2012 GRANA",         coach_id:33,  coach:"HADEY LATIFF",
-      data:[[1,0],[1,0],[1,0],[0,0],[0,0],[0,0]] },
-    { team:"SELECT 2013 BLAU",          coach_id:155, coach:"Juan Badathuruge Aswin",
-      data:[[4,0],[4,0],[3,0],[3,0],[0,0],[0,0]] },
-    { team:"SELECT 2013 GRANA",         coach_id:179, coach:"Saul Ellison Katz",
-      data:[[2,1],[2,0],[2,0],[2,0],[0,0],[0,0]] },
-    { team:"2014 BARÇA SPORTS DEV SYL", coach_id:3,   coach:"MUHD YUSUF",
-      data:[[4,0],[4,0],[3,0],[0,0],[0,0],[0,0]] },
-    { team:"SELECT 2014 BLAU",          coach_id:138, coach:"Marc Reyes Custal",
-      data:[[3,0],[3,0],[2,0],[1,0],[0,0],[0,0]] },
-    { team:"SELECT 2014 ORANGE",        coach_id:84,  coach:"STEVE GALLEGO",
-      data:[[3,0],[3,0],[2,1],[2,0],[0,0],[0,0]] },
-    { team:"SELECT 2014 BLACK",         coach_id:152, coach:"Darryl Lim",
-      data:[[3,0],[2,1],[1,0],[0,0],[0,0],[0,0]] },
-    { team:"2015 BARÇA SPORTS DEV",     coach_id:150, coach:"Shahrin Bin Ahmat",
-      data:[[4,0],[4,0],[3,0],[3,0],[2,0],[1,0]] },
-    { team:"SELECT 2015 BLAU",          coach_id:53,  coach:"BENJAMIN FRANCIS",
-      data:[[4,0],[4,0],[3,0],[3,0],[0,0],[0,0]] },
-    { team:"SELECT 2015 BLACK",         coach_id:169, coach:"Dani Riaz",
-      data:[[3,0],[2,0],[2,0],[1,0],[0,0],[0,0]] },
-    { team:"SELECT 2015 GROC",          coach_id:114, coach:"DENNIS GOH",
-      data:[[3,0],[2,1],[2,0],[1,0],[0,0],[0,0]] },
-    { team:"SELECT 2015 GRANA",         coach_id:1,   coach:"MOHD SHAHARIN",
-      data:[[2,0],[2,0],[1,0],[1,0],[0,0],[0,0]] },
-  ].map(s => {
-    const total = s.data.reduce((acc,d) => ({assigned:acc.assigned+d[0], other:acc.other+d[1]}),{assigned:0,other:0});
-    return { team:s.team, ref_coach_id:s.coach_id, ref_coach_name:s.coach, total, months:mkMonths(s.data) };
-  });
-
-  const catTotal = (sessions) => sessions.reduce(
-    (acc,s) => ({assigned:acc.assigned+s.total.assigned, other:acc.other+s.total.other}),
-    {assigned:0,other:0}
-  );
-
-  return {
-    generated_at: new Date().toISOString(),
-    date_range:   { from:"2026-01-01", to:"2026-06-15" },
-    months, month_keys: monthKeys,
-    categories: [
-      { name:"Academy", total:{assigned:0,other:0},   sessions:[] },
-      { name:"Select",  total:catTotal(selectSessions), sessions:selectSessions },
-      { name:"GK",      total:{assigned:0,other:0},   sessions:[] },
-    ],
-    unmatched_sessions: [],
-  };
-}
-
-// ── TERM VIEW ────────────────────────────────────────────────────────────────
-
+// ── DATA LOADING ──────────────────────────────────────────────────────────────
 async function loadTermData() {
   try {
     const r = await fetch("data/term_output.json");
@@ -521,22 +433,45 @@ async function loadTermData() {
     return await r.json();
   } catch(e) {
     document.getElementById("term-table-wrap").innerHTML =
-      `<div class="empty">No hay datos de término disponibles. Ejecuta process.py para generarlos.</div>`;
+      `<div class="empty">No term data available. Run process.py to generate it.</div>`;
     return null;
   }
 }
 
+// ── RENDER ────────────────────────────────────────────────────────────────────
 function renderTerm(data) {
   if (!data) return;
   const weeks = data.weeks || [];
+
+  // Summary bar from term totals
+  let totA = 0, totO = 0;
+  for (const cat of data.categories) {
+    for (const s of cat.sessions) {
+      totA += s.total_assigned   || 0;
+      totO += (s.total_sessions - s.total_assigned) || 0;
+    }
+  }
+  const tot = totA + totO;
+  document.getElementById("s-total").textContent = tot;
+  document.getElementById("s-asig").textContent  = totA;
+  document.getElementById("s-otro").textContent  = totO;
+  document.getElementById("s-rate").textContent  = tot > 0 ? (100 * totA / tot).toFixed(1) + "%" : "—";
+  document.getElementById("date-range").textContent =
+    `${data.term.from}  →  ${data.term.to}`;
+  document.getElementById("gen-at").textContent =
+    "Generated: " + new Date(data.generated_at).toLocaleString();
+
+  // colspan = 2 (team+coach) + 12 weeks + 1 (total) + 1 (comments) = 16
+  const COLS = 2 + weeks.length + 2;
 
   let html = `<table class="term-table">
     <thead>
       <tr>
         <th class="left" rowspan="2" style="min-width:220px">Session / Team</th>
-        <th class="left" rowspan="2" style="min-width:160px">Entrenador Titular</th>
+        <th class="left" rowspan="2" style="min-width:170px">Reference Coach</th>
         ${weeks.map(w => `<th class="wk-hdr">${w.label}</th>`).join("")}
         <th rowspan="2" style="min-width:68px">Total</th>
+        <th class="left" rowspan="2" style="min-width:220px">Comments</th>
       </tr>
       <tr class="sub">
         ${weeks.map(w => `<th style="font-size:9px;padding:3px 4px">${w.dates}</th>`).join("")}
@@ -545,30 +480,27 @@ function renderTerm(data) {
     <tbody>`;
 
   for (const cat of data.categories) {
-    const cid = `tc_${cat.name}`;
+    const cid   = `tc_${cat.name}`;
     const nSess = cat.sessions.length;
 
-    let catAssigned = 0, catTotal = 0;
-    for (const s of cat.sessions) {
-      catAssigned += s.total_assigned || 0;
-      catTotal    += s.total_sessions || 0;
-    }
-    const mp = catTotal > 0 ? Math.round(100 * catAssigned / catTotal) : 0;
+    let catA = 0, catT = 0;
+    for (const s of cat.sessions) { catA += s.total_assigned || 0; catT += s.total_sessions || 0; }
+    const mp      = catT > 0 ? Math.round(100 * catA / catT) : 0;
     const mpClass = mp >= 80 ? "ok" : mp >= 50 ? "mid" : "warn";
 
     html += `<tr class="cat" onclick="toggle('${cid}', this)">
-      <td colspan="${2 + weeks.length + 1}">
+      <td colspan="${COLS}">
         <i class="arrow">▶</i>
         ${cat.name}
-        <span class="badge gray">${nSess} equipos</span>
+        <span class="badge gray">${nSess} teams</span>
         <span class="badge ${mpClass}">${mp}% match</span>
       </td>
     </tr>`;
 
     if (nSess === 0) {
       html += `<tr class="sess ${cid} hidden">
-        <td colspan="${2 + weeks.length + 1}" style="text-align:center;color:#aaa;font-size:12px;padding:12px">
-          Sin datos para este término
+        <td colspan="${COLS}" style="text-align:center;color:#aaa;font-size:12px;padding:12px">
+          No data for this term
         </td>
       </tr>`;
     }
@@ -592,38 +524,42 @@ function renderTerm(data) {
       const rate        = totSess > 0 ? Math.round(100 * totAssigned / totSess) : 0;
       const rateClass   = rate >= 80 ? "good" : rate >= 50 ? "mid" : "bad";
 
+      const subs = (sess.top_substitutes || []).map(s =>
+        `<span class="sub-coach">↪ <strong>${s.coach_name}</strong> ${s.pct}%</span>`
+      ).join("");
+
+      // Escape team name for data attribute
+      const safeKey = sess.team.replace(/"/g, "&quot;");
+
       html += `<tr class="sess ${cid} hidden">
         <td class="name">${sess.team}</td>
-        <td class="coach">${sess.ref_coach_name || "—"}</td>
+        <td class="coach">${sess.ref_coach_name || "—"}${subs}</td>
         ${weekCells}
         <td class="num total-cell ${rateClass}">${totAssigned}/${totSess}<small>${rate}%</small></td>
+        <td class="comment-col">
+          <textarea class="comment-cell" data-team="${safeKey}"
+            placeholder="Configure ⚙ to enable comments" disabled
+            onblur="saveComment(this.dataset.team, this.value)"
+          ></textarea>
+        </td>
       </tr>`;
     }
   }
 
   html += "</tbody></table>";
   document.getElementById("term-table-wrap").innerHTML = html;
-}
-
-function switchView(v) {
-  document.getElementById("view-monthly").classList.toggle("hidden", v !== "monthly");
-  document.getElementById("view-term").classList.toggle("hidden", v !== "term");
-  document.getElementById("btn-monthly").classList.toggle("active", v === "monthly");
-  document.getElementById("btn-term").classList.toggle("active", v === "term");
+  fillCommentCells();
 }
 
 // ── BOOT ─────────────────────────────────────────────────────────────────────
-
-loadData()
-  .then(render)
+Promise.all([loadTermData(), loadComments()])
+  .then(([termData]) => {
+    if (termData) renderTerm(termData);
+  })
   .catch(err => {
     show("error-banner", "Dashboard error: " + err.message);
-    document.getElementById("table-wrap").innerHTML =
-      `<div class="empty">Could not render dashboard. Check console.</div>`;
     console.error(err);
   });
-
-loadTermData().then(data => { if (data) renderTerm(data); });
 </script>
 </body>
 </html>

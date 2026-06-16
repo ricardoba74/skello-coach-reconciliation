@@ -64,10 +64,10 @@ DAY_ORDER = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5}
 TERM_START = datetime(2026, 4, 20)   # Monday week 1
 TERM_END   = datetime(2026, 7, 12)   # Sunday week 12
 
-# Day-of-week → short label (Spanish, X for Wed to avoid clash with M)
+# Day-of-week → short label (English 2-letter abbreviations)
 DAY_ABBR = {
-    "Monday": "L", "Tuesday": "M", "Wednesday": "X",
-    "Thursday": "J", "Friday": "V", "Saturday": "S",
+    "Monday": "Mo", "Tuesday": "Tu", "Wednesday": "We",
+    "Thursday": "Th", "Friday": "Fr", "Saturday": "Sa",
 }
 
 
@@ -510,9 +510,10 @@ def reconcile_term(teams, sessions):
             for sess in rows:
                 date_groups.setdefault(sess["date"], []).append(sess)
 
-            # Build by_week: 12 slots, each a list of session results
+            # Build by_week and count substitute appearances (date-level)
             by_week = [[] for _ in range(12)]
             total_assigned = 0
+            sub_counts: dict[int, int] = {}  # coach_id → #dates they appeared (excl. ref)
 
             for sess_date in sorted(date_groups.keys()):
                 date_rows = date_groups[sess_date]
@@ -529,6 +530,16 @@ def reconcile_term(teams, sessions):
                 else:
                     actual_id = date_rows[0]["coach_id"]
 
+                # Count non-ref coaches for substitute leaderboard
+                seen_this_date: set[int] = set()
+                for r in date_rows:
+                    cid = r["coach_id"]
+                    if pd.notna(cid) and (not pd.notna(ref_id) or int(cid) != int(ref_id)):
+                        cid_int = int(cid)
+                        if cid_int not in seen_this_date:
+                            seen_this_date.add(cid_int)
+                            sub_counts[cid_int] = sub_counts.get(cid_int, 0) + 1
+
                 actual_name = (id_to_name.get(int(actual_id), f"#{int(actual_id)}")
                                if pd.notna(actual_id) else "—")
 
@@ -542,13 +553,24 @@ def reconcile_term(teams, sessions):
                         })
                         break
 
+            total_sess = len(date_groups)
+            top_subs = sorted(sub_counts.items(), key=lambda x: -x[1])[:2]
+            top_substitutes = [
+                {"coach_id":   cid,
+                 "coach_name": id_to_name.get(cid, f"#{cid}"),
+                 "count":      cnt,
+                 "pct":        round(100 * cnt / total_sess) if total_sess else 0}
+                for cid, cnt in top_subs
+            ]
+
             sdata = {
-                "team":           str(team["team"]),
-                "ref_coach_id":   int(ref_id) if pd.notna(ref_id) else None,
-                "ref_coach_name": ref_name,
-                "total_sessions": len(date_groups),
-                "total_assigned": total_assigned,
-                "by_week":        by_week,
+                "team":             str(team["team"]),
+                "ref_coach_id":     int(ref_id) if pd.notna(ref_id) else None,
+                "ref_coach_name":   ref_name,
+                "top_substitutes":  top_substitutes,
+                "total_sessions":   total_sess,
+                "total_assigned":   total_assigned,
+                "by_week":          by_week,
             }
             category["sessions"].append(sdata)
 
