@@ -46,17 +46,17 @@
     .header-right { display: flex; align-items: center; gap: 16px; }
 
     .settings-btn {
-      background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.22);
-      color: #fff;
-      padding: 6px 14px;
-      border-radius: 16px;
-      font-size: 12px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.20);
+      color: rgba(255,255,255,.65);
+      padding: 5px 12px;
+      border-radius: 14px;
+      font-size: 11px;
       cursor: pointer;
       transition: background .15s;
       white-space: nowrap;
     }
-    .settings-btn:hover { background: rgba(255,255,255,.22); }
+    .settings-btn:hover { background: rgba(255,255,255,.20); color: #fff; }
 
     /* ── MODAL ── */
     .modal-overlay {
@@ -305,17 +305,16 @@
 <!-- Settings modal -->
 <div id="settings-overlay" class="modal-overlay hidden" onclick="closeIfOverlay(event)">
   <div class="modal-box">
-    <h3>Comments Settings</h3>
+    <h3>Comments — Google Sheets setup</h3>
     <p>
-      Comments are stored in <strong>JSONBin.io</strong> and shared across
-      your team. Create a free account at jsonbin.io, create a new bin, and
-      paste your credentials below.
+      Paste the <strong>Google Apps Script</strong> web app URL here.
+      This lets all team members share comments automatically via the
+      existing Google Sheet — no accounts, no passwords.
     </p>
-    <label>Bin ID</label>
-    <input id="inp-bin-id" type="text" placeholder="64abc...xyz" autocomplete="off" />
-    <div class="modal-lbl-gap"></div>
-    <label>Master Key <span style="font-weight:400;font-size:10px">(starts with $2b$)</span></label>
-    <input id="inp-bin-key" type="password" placeholder="$2b$10$…" autocomplete="off" />
+    <label>Apps Script Web App URL</label>
+    <input id="inp-gas-url" type="text"
+      placeholder="https://script.google.com/macros/s/…/exec"
+      autocomplete="off" style="font-size:11px" />
     <div class="modal-actions">
       <button onclick="closeSettings()">Cancel</button>
       <button class="btn-primary" onclick="saveSettings()">Save</button>
@@ -342,61 +341,64 @@
 </div>
 
 <script>
-// ── JSONBIN CONFIG ────────────────────────────────────────────────────────────
-const JSONBIN_BASE = "https://api.jsonbin.io/v3/b";
-const getBinId  = () => localStorage.getItem("jb_id")  || "";
-const getBinKey = () => localStorage.getItem("jb_key") || "";
+// ── COMMENTS CONFIG ───────────────────────────────────────────────────────────
+// After deploying the Google Apps Script, paste the web app URL here
+// (or enter it via ⚙ settings). Leave empty to use local-only comments.
+const HARDCODED_GAS_URL = "";
 
-// ── COMMENTS ─────────────────────────────────────────────────────────────────
+const getGasUrl = () =>
+  HARDCODED_GAS_URL || localStorage.getItem("gas_url") || "";
+
+// ── COMMENTS STATE ────────────────────────────────────────────────────────────
 let comments = {};
 
 async function loadComments() {
-  const id = getBinId();
-  if (!id) return;
-  try {
-    const headers = {};
-    const key = getBinKey();
-    if (key) headers["X-Master-Key"] = key;
-    const r = await fetch(`${JSONBIN_BASE}/${id}/latest`, { headers });
-    if (!r.ok) { console.warn("JSONBin read failed:", r.status); return; }
-    const data = await r.json();
-    comments = data.record || {};
-  } catch(e) { console.warn("Could not load comments:", e.message); }
+  const url = getGasUrl();
+  if (url) {
+    try {
+      // Apps Script GET — follows redirect, returns JSON with CORS headers
+      const r = await fetch(url, { redirect: "follow" });
+      if (r.ok) {
+        const data = await r.json();
+        comments = data || {};
+        localStorage.setItem("comments_local", JSON.stringify(comments));
+        return;
+      }
+    } catch(e) { console.warn("Google Sheets comments read failed:", e.message); }
+  }
+  // Fallback: local cache
+  try { comments = JSON.parse(localStorage.getItem("comments_local") || "{}"); } catch(e) {}
 }
 
 async function saveComment(teamKey, text) {
-  if (text === (comments[teamKey] || "")) return; // no change
+  if (text === (comments[teamKey] || "")) return;
   comments[teamKey] = text;
-  // Persist locally always (fast fallback)
   localStorage.setItem("comments_local", JSON.stringify(comments));
-  const id  = getBinId();
-  const key = getBinKey();
-  if (!id || !key) return;
-  try {
-    await fetch(`${JSONBIN_BASE}/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "X-Master-Key": key },
-      body: JSON.stringify(comments),
-    });
-  } catch(e) { console.warn("Could not save comment:", e.message); }
+
+  const url = getGasUrl();
+  if (!url) return;
+
+  // POST form-encoded (simple request → no CORS preflight needed)
+  fetch(url, {
+    method:  "POST",
+    mode:    "no-cors",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body:    new URLSearchParams({ team: teamKey, comment: text }).toString(),
+  }).catch(() => {});
 }
 
 function fillCommentCells() {
-  // Prefer JSONBin data; fall back to local cache
-  const local = JSON.parse(localStorage.getItem("comments_local") || "{}");
-  const merged = Object.assign({}, local, comments);
+  const configured = getGasUrl() !== "";
   document.querySelectorAll(".comment-cell[data-team]").forEach(el => {
-    el.value = merged[el.dataset.team] || "";
-    // Enable/disable based on whether bin is configured
-    el.disabled = getBinId() === "";
-    el.placeholder = getBinId() ? "Add a comment…" : "Configure ⚙ to enable comments";
+    el.value       = comments[el.dataset.team] || "";
+    el.disabled    = false; // always editable (saves locally if no URL)
+    el.placeholder = configured ? "Add a comment…" : "Add a comment… (local only — configure ⚙ to share)";
   });
 }
 
-// ── SETTINGS MODAL ───────────────────────────────────────────────────────────
+// ── SETTINGS MODAL ────────────────────────────────────────────────────────────
 function openSettings() {
-  document.getElementById("inp-bin-id").value  = getBinId();
-  document.getElementById("inp-bin-key").value = getBinKey();
+  document.getElementById("inp-gas-url").value = localStorage.getItem("gas_url") || "";
   document.getElementById("settings-overlay").classList.remove("hidden");
 }
 function closeSettings() {
@@ -406,8 +408,7 @@ function closeIfOverlay(e) {
   if (e.target.id === "settings-overlay") closeSettings();
 }
 function saveSettings() {
-  localStorage.setItem("jb_id",  document.getElementById("inp-bin-id").value.trim());
-  localStorage.setItem("jb_key", document.getElementById("inp-bin-key").value.trim());
+  localStorage.setItem("gas_url", document.getElementById("inp-gas-url").value.trim());
   closeSettings();
   loadComments().then(fillCommentCells);
 }
