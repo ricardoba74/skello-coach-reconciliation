@@ -27,6 +27,7 @@ Compara las asignaciones teóricas de entrenadores (fichero de equipos) contra l
 | `comments_script.gs` | Código del Google Apps Script para backend de comentarios |
 | `data/teams.csv` | Exportado de File 1 pestaña "New info teams" |
 | `data/sessions.csv` | Exportado de File 2 pestaña "Data" — **excluido de git**, re-exportar mensualmente |
+| `data/coaches.csv` | Exportado de la base de datos de coaches (Airtable/sistema interno) — fuente de teléfonos para COACH_PHONES |
 | `data/term_output.json` | Generado por el pipeline — **excluido de git** |
 
 ---
@@ -213,7 +214,16 @@ Los comentarios se guardan en la pestaña **"Comments"** del spreadsheet de File
 ## Botón WhatsApp
 
 Mapa `coach_id → teléfono` embebido como constante `COACH_PHONES` en `index.html`.
-Actualizar si cambian los teléfonos (fuente: `NEW INFO TEAMS` sheet, cols AD/AG/AJ).
+
+**Fuentes de teléfonos (en orden de prioridad):**
+1. `data/coaches.csv` — columna `PHONE` (col 13), columna `ID` (col 1). **Fuente principal y más completa.**
+2. `data/teams.csv` — cols AD/AG/AJ (índices 29, 32, 35). Fuente secundaria.
+
+**Proceso para actualizar COACH_PHONES:**
+1. Exportar coaches.csv del sistema de gestión de coaches
+2. Leer col `ID` y col `PHONE`
+3. Para coaches que aparecen en el dashboard (`term_output.json`) pero no tienen botón, buscar su ID en coaches.csv col `ID`
+4. Añadir la entrada `"coach_id":"phone"` en la constante `COACH_PHONES` de `index.html` manteniendo orden numérico
 
 Mensaje pre-redactado (firmado por Jordi, enlace a attendance.barcaacademy.sg).
 
