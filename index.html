@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Coach Reconciliation Dashboard</title>
+  <title>Academy Coach Monitor T2 2026</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -45,18 +45,28 @@
     .header-meta { font-size: 12px; opacity: 0.65; }
     .header-right { display: flex; align-items: center; gap: 16px; }
 
-    .settings-btn {
-      background: rgba(255,255,255,.10);
-      border: 1px solid rgba(255,255,255,.20);
-      color: rgba(255,255,255,.65);
-      padding: 5px 12px;
-      border-radius: 14px;
-      font-size: 11px;
-      cursor: pointer;
-      transition: background .15s;
-      white-space: nowrap;
+    /* ── TABS ── */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      background: rgba(255,255,255,.1);
+      border-radius: 8px;
+      padding: 4px;
     }
-    .settings-btn:hover { background: rgba(255,255,255,.20); color: #fff; }
+    .tab-btn {
+      padding: 6px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,.6);
+      transition: background .15s, color .15s;
+      letter-spacing: .2px;
+    }
+    .tab-btn:hover  { color: #fff; background: rgba(255,255,255,.12); }
+    .tab-btn.active { background: #fff; color: var(--navy); }
 
     /* ── MODAL ── */
     .modal-overlay {
@@ -287,40 +297,117 @@
     .comment-cell:focus  { border-color: var(--navy); background: var(--white); outline: none; }
     .comment-cell:disabled { color: #bdbdbd; cursor: not-allowed; font-style: italic; }
     .comment-cell::placeholder { color: #bdbdbd; }
+
+    .ref-badge {
+      display: inline-block;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 9px;
+      font-weight: 700;
+      background: var(--navy);
+      color: #fff;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+      margin-left: 3px;
+    }
+
+    tbody tr.sess.team-first { border-top: 2px solid var(--border); }
+    tbody tr.sess td.coach-cell { font-size: 12px; min-width: 150px; padding: 6px 10px !important; }
+    tbody tr.sess td.name { vertical-align: top; padding-top: 10px !important; }
+    td.comment-col { vertical-align: top !important; }
+
+    /* ── STICKY HEADER (freeze date row on vertical scroll) ── */
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+    /* Corner cells (sticky left + sticky top) need the highest z-index */
+    thead th[style*="left:"] { z-index: 4 !important; }
+    /* Make both table wrappers scroll vertically so the sticky thead anchors correctly */
+    #term-table-wrap    { max-height: calc(100vh - 180px); overflow-y: auto; }
+    #coaches-table-wrap { max-height: calc(100vh - 180px); overflow-y: auto; }
+
+    /* ── CATEGORY HEADER BADGES ── */
+    .cat-badge {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-left: 8px;
+      vertical-align: middle;
+      letter-spacing: .2px;
+    }
+    .cat-badge.gray { background: #cfd8dc; color: #37474f; }
+    .cat-badge.ok   { background: #c8e6c9; color: #1b5e20; }
+    .cat-badge.mid  { background: #fff3e0; color: #e65100; }
+    .cat-badge.bad  { background: #ffcdd2; color: #b71c1c; }
+
+    /* ── COACHES TABLE ── */
+    .coaches-table th.dt-hdr {
+      min-width: 40px;
+      max-width: 48px;
+      text-align: center;
+      padding: 8px 4px;
+      font-size: 10px;
+    }
+    .coaches-table .wk-cell {
+      min-width: 40px;
+      max-width: 48px;
+      padding: 4px 3px !important;
+    }
+    /* ── WHATSAPP BUTTON ── */
+    .wa-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #25D366;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      margin-left: 10px;
+      vertical-align: middle;
+      line-height: 1.4;
+    }
+    .wa-btn:hover { background: #128C7E; color: #fff; }
+    .wa-btn svg { width: 13px; height: 13px; fill: #fff; flex-shrink: 0; }
+
+    /* Coach-name header rows use same .cat style */
+    .coaches-table tbody tr.cat td {
+      padding: 9px 16px;
+      font-size: 13px;
+    }
+    /* Team sub-rows: name column shows team label */
+    .coaches-table tbody tr.sess td.team-cell {
+      font-size: 11px;
+      padding-left: 32px;
+      min-width: 220px;
+      max-width: 300px;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body>
 
 <header>
   <div>
-    <h1>Coach Reconciliation Dashboard</h1>
+    <h1>Academy Coach Monitor T2 2026</h1>
     <div class="header-meta" id="date-range">—</div>
   </div>
   <div class="header-right">
-    <button class="settings-btn" onclick="openSettings()">⚙ Comments</button>
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
+      <button class="tab-btn"        data-tab="coaches"  onclick="switchTab('coaches')">Coaches</button>
+    </div>
     <div class="header-meta" id="gen-at"></div>
   </div>
 </header>
-
-<!-- Settings modal -->
-<div id="settings-overlay" class="modal-overlay hidden" onclick="closeIfOverlay(event)">
-  <div class="modal-box">
-    <h3>Comments — Google Sheets setup</h3>
-    <p>
-      Paste the <strong>Google Apps Script</strong> web app URL here.
-      This lets all team members share comments automatically via the
-      existing Google Sheet — no accounts, no passwords.
-    </p>
-    <label>Apps Script Web App URL</label>
-    <input id="inp-gas-url" type="text"
-      placeholder="https://script.google.com/macros/s/…/exec"
-      autocomplete="off" style="font-size:11px" />
-    <div class="modal-actions">
-      <button onclick="closeSettings()">Cancel</button>
-      <button class="btn-primary" onclick="saveSettings()">Save</button>
-    </div>
-  </div>
-</div>
 
 <div id="error-banner" class="banner error"></div>
 <div id="warn-banner"  class="banner warning"></div>
@@ -334,17 +421,58 @@
   <div class="stat rate">  <div class="val" id="s-rate">—</div> <div class="lbl">Match rate</div></div>
 </div>
 
-<div class="container">
-  <div class="table-wrap" id="term-table-wrap">
-    <div class="empty">Loading…</div>
+<!-- ── SESSIONS VIEW ── -->
+<div id="sessions-view">
+  <div class="container">
+    <div class="table-wrap" id="term-table-wrap">
+      <div class="empty">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── COACHES VIEW ── -->
+<div id="coaches-view" style="display:none">
+  <div class="container">
+    <div class="table-wrap" id="coaches-table-wrap">
+      <div class="empty">Loading…</div>
+    </div>
   </div>
 </div>
 
 <script>
+// ── ATTENDANCE TRACKING STARTED May 4 — ignore earlier dates ────────────────
+const ATT_START = '2026-05-04';
+
+// ── WHATSAPP COACH PHONES (coach_id → number with country code) ──────────────
+const COACH_PHONES = {"1":"6596484912","3":"6594897114","6":"6596937771","8":"6598557748","10":"6593274832","18":"6583232770","21":"6593694520","28":"6590703147","33":"6597821164","39":"6594884525","42":"6596211063","43":"6597619795","44":"6598668280","46":"6593646362","49":"6585111717","53":"6584527031","59":"6594740605","75":"6590679241","79":"6588947762","80":"6588152513","84":"6581866422","86":"6582661000","94":"6590213703","114":"6594768360","121":"6591002595","124":"6584682241","129":"6593679434","133":"6586618343","136":"6591002447","138":"6593845054","144":"6596780098","147":"6597824655","148":"6590874815","149":"6597278043","150":"6594893918","152":"6592360694","155":"6584366091","158":"6580801014","160":"6591760452","161":"6596163871","163":"6587232753","164":"6596995926","165":"6598966943","169":"6582838792","170":"6583993104","171":"6587556650","172":"6583224255","174":"6597276438","177":"6594518891","179":"447888161216","181":"6593922072","182":"6596691746","183":"6593756083","184":"6585692749","186":"6588947812","188":"6587959455","191":"6581687963","192":"6585332877","193":"6591011325","195":"6591011325","197":"6582680872","198":"6585690560","200":"34628638528","300":"34689027360"};
+
+const WA_MSG = encodeURIComponent(
+`Hi, this is *Jordi*.
+
+We are sending you this message because we are currently *auditing the academy data*, and we have noticed that your *attendance completion ratio for the players is very low*.
+
+Please remember that filling in the players' attendance after each training session is *extremely important and relevant* for our internal tracking and reporting.
+
+From now on, please make sure you *complete the attendance every day you have a training session*.
+
+You can access the attendance form through the following link:
+
+https://attendance.barcaacademy.sg/
+
+Thank you for your cooperation.`
+);
+
+// ── TAB SWITCHING ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('sessions-view').style.display = tab === 'sessions' ? '' : 'none';
+  document.getElementById('coaches-view').style.display  = tab === 'coaches'  ? '' : 'none';
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab)
+  );
+}
+
 // ── COMMENTS CONFIG ───────────────────────────────────────────────────────────
-// After deploying the Google Apps Script, paste the web app URL here
-// (or enter it via ⚙ settings). Leave empty to use local-only comments.
-const HARDCODED_GAS_URL = "";
+const HARDCODED_GAS_URL = "https://script.google.com/macros/s/AKfycbxgutR_S63QtgwQlajz1CKtdKWlKLbF_21-3fxjXU6jdXC_OUkZ0QB2kwl4hODzRQwXgw/exec";
 
 const getGasUrl = () =>
   HARDCODED_GAS_URL || localStorage.getItem("gas_url") || "";
@@ -356,7 +484,6 @@ async function loadComments() {
   const url = getGasUrl();
   if (url) {
     try {
-      // Apps Script GET — follows redirect, returns JSON with CORS headers
       const r = await fetch(url, { redirect: "follow" });
       if (r.ok) {
         const data = await r.json();
@@ -366,7 +493,6 @@ async function loadComments() {
       }
     } catch(e) { console.warn("Google Sheets comments read failed:", e.message); }
   }
-  // Fallback: local cache
   try { comments = JSON.parse(localStorage.getItem("comments_local") || "{}"); } catch(e) {}
 }
 
@@ -378,7 +504,6 @@ async function saveComment(teamKey, text) {
   const url = getGasUrl();
   if (!url) return;
 
-  // POST form-encoded (simple request → no CORS preflight needed)
   fetch(url, {
     method:  "POST",
     mode:    "no-cors",
@@ -391,26 +516,9 @@ function fillCommentCells() {
   const configured = getGasUrl() !== "";
   document.querySelectorAll(".comment-cell[data-team]").forEach(el => {
     el.value       = comments[el.dataset.team] || "";
-    el.disabled    = false; // always editable (saves locally if no URL)
+    el.disabled    = false;
     el.placeholder = configured ? "Add a comment…" : "Add a comment… (local only — configure ⚙ to share)";
   });
-}
-
-// ── SETTINGS MODAL ────────────────────────────────────────────────────────────
-function openSettings() {
-  document.getElementById("inp-gas-url").value = localStorage.getItem("gas_url") || "";
-  document.getElementById("settings-overlay").classList.remove("hidden");
-}
-function closeSettings() {
-  document.getElementById("settings-overlay").classList.add("hidden");
-}
-function closeIfOverlay(e) {
-  if (e.target.id === "settings-overlay") closeSettings();
-}
-function saveSettings() {
-  localStorage.setItem("gas_url", document.getElementById("inp-gas-url").value.trim());
-  closeSettings();
-  loadComments().then(fillCommentCells);
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -439,12 +547,11 @@ async function loadTermData() {
   }
 }
 
-// ── RENDER ────────────────────────────────────────────────────────────────────
+// ── RENDER SESSIONS TAB ──────────────────────────────────────────────────────
 function renderTerm(data) {
   if (!data) return;
-  const weeks = data.weeks || [];
+  const dates = data.dates || [];
 
-  // Summary bar from term totals
   let totA = 0, totO = 0;
   for (const cat of data.categories) {
     for (const s of cat.sessions) {
@@ -462,39 +569,65 @@ function renderTerm(data) {
   document.getElementById("gen-at").textContent =
     "Generated: " + new Date(data.generated_at).toLocaleString();
 
-  // colspan = 2 (team+coach) + 12 weeks + 1 (total) + 1 (comments) = 16
-  const COLS = 2 + weeks.length + 2;
+  const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAY_ABBR   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  const dtHdrs1 = dates.map(d => {
+    const dt = new Date(d + 'T00:00:00Z');
+    return `<th class="wk-hdr" style="min-width:40px;max-width:48px;padding:8px 4px;font-size:10px">${MONTH_ABBR[dt.getUTCMonth()]} ${dt.getUTCDate()}</th>`;
+  }).join('');
+  const dtHdrs2 = dates.map(d => {
+    const dt = new Date(d + 'T00:00:00Z');
+    return `<th style="font-size:9px;padding:2px 3px">${DAY_ABBR[dt.getUTCDay()]}</th>`;
+  }).join('');
+
+  const COLS = 2 + dates.length + 3;
 
   let html = `<table class="term-table">
     <thead>
       <tr>
-        <th class="left" rowspan="2" style="min-width:220px">Session / Team</th>
-        <th class="left" rowspan="2" style="min-width:170px">Reference Coach</th>
-        ${weeks.map(w => `<th class="wk-hdr">${w.label}</th>`).join("")}
-        <th rowspan="2" style="min-width:68px">Total</th>
+        <th class="left" rowspan="2" style="min-width:220px;position:sticky;left:0;z-index:2;background:var(--slate)">Session / Team</th>
+        <th class="left" rowspan="2" style="min-width:160px;position:sticky;left:220px;z-index:2;background:var(--slate)">Coach</th>
+        <th rowspan="2" style="min-width:68px">Consistencia</th>
+        <th rowspan="2" style="min-width:68px">Asistencia</th>
         <th class="left" rowspan="2" style="min-width:220px">Comments</th>
+        ${dtHdrs1}
       </tr>
-      <tr class="sub">
-        ${weeks.map(w => `<th style="font-size:9px;padding:3px 4px">${w.dates}</th>`).join("")}
-      </tr>
+      <tr class="sub"><th></th><th></th><th></th>${dtHdrs2}</tr>
     </thead>
     <tbody>`;
 
   for (const cat of data.categories) {
-    const cid   = `tc_${cat.name}`;
-    const nSess = cat.sessions.length;
+    const cid      = `tc_${cat.name}`;
+    const sessions = cat.sessions || [];
+    const nSess    = sessions.length;
 
-    let catA = 0, catT = 0;
-    for (const s of cat.sessions) { catA += s.total_assigned || 0; catT += s.total_sessions || 0; }
-    const mp      = catT > 0 ? Math.round(100 * catA / catT) : 0;
-    const mpClass = mp >= 80 ? "ok" : mp >= 50 ? "mid" : "warn";
+    // Category-level aggregated metrics
+    let catAssigned = 0, catTotal = 0, catAtt = 0, catAttTotal = 0;
+    for (const sess of sessions) {
+      catAssigned += sess.total_assigned || 0;
+      catTotal    += sess.total_sessions || 0;
+      const ref = (sess.coaches || []).find(c => c.is_ref) || (sess.coaches || [])[0];
+      if (ref && Array.isArray(ref.att_by_date)) {
+        dates.forEach((d, di) => {
+          if (d < ATT_START || (ref.by_date || [])[di] !== true) return;
+          catAttTotal++;
+          if (ref.att_by_date[di] === true) catAtt++;
+        });
+      }
+    }
+    const consPct   = catTotal    > 0 ? Math.round(100 * catAssigned / catTotal)    : 0;
+    const catAttPct = catAttTotal > 0 ? Math.round(100 * catAtt      / catAttTotal) : 0;
+    const consClass = consPct   >= 80 ? 'ok' : consPct   >= 50 ? 'mid' : 'bad';
+    const attCls    = catAttPct >= 80 ? 'ok' : catAttPct >= 50 ? 'mid' : 'bad';
 
     html += `<tr class="cat" onclick="toggle('${cid}', this)">
-      <td colspan="${COLS}">
+      <td colspan="${COLS}" style="position:sticky;left:0;background:#eceff1">
         <i class="arrow">▶</i>
         ${cat.name}
-        <span class="badge gray">${nSess} teams</span>
-        <span class="badge ${mpClass}">${mp}% match</span>
+        <span class="cat-badge gray">${nSess} equipos</span>
+        <span class="cat-badge ${consClass}">Consist. ${consPct}%</span>
+        <span class="cat-badge ${attCls}">Asist. ${catAttPct}%</span>
       </td>
     </tr>`;
 
@@ -506,44 +639,94 @@ function renderTerm(data) {
       </tr>`;
     }
 
-    for (const sess of cat.sessions) {
-      const weekCells = (sess.by_week || []).map(weekSessions => {
-        if (!weekSessions || weekSessions.length === 0) {
-          return `<td class="wk-cell empty">·</td>`;
-        }
-        const items = weekSessions.map(s => {
-          const cls  = s.assigned ? "yes" : "no";
-          const icon = s.assigned ? "✓" : "✗";
-          const tip  = s.actual_coach ? ` title="${s.actual_coach}"` : "";
-          return `<span class="tick-item ${cls}"${tip}>${s.day}${icon}</span>`;
+    for (const sess of sessions) {
+      const coaches  = sess.coaches || [];
+      const nCoaches = Math.max(coaches.length, 1);
+      const safeKey  = sess.team.replace(/"/g, "&quot;");
+      const totSess  = sess.total_sessions || 0;
+
+      if (coaches.length === 0) {
+        const emptyCells = dates.map(() => `<td class="wk-cell empty">·</td>`).join("");
+        html += `<tr class="sess team-first ${cid} hidden">
+          <td class="name" style="position:sticky;left:0;background:var(--white)">${sess.team}</td>
+          <td class="coach-cell" style="position:sticky;left:220px;background:var(--white)">—</td>
+          <td class="num total-cell">—</td>
+          <td class="num total-cell">—</td>
+          <td class="comment-col">
+            <textarea class="comment-cell" data-team="${safeKey}"
+              placeholder="Add a comment…"
+              onblur="saveComment(this.dataset.team, this.value)"
+            ></textarea>
+          </td>
+          ${emptyCells}
+        </tr>`;
+        continue;
+      }
+
+      coaches.forEach((coach, ci) => {
+        const isFirst = ci === 0;
+
+        const coachLabel = coach.is_ref
+          ? `<strong>${coach.coach_name}</strong>&nbsp;<span class="ref-badge">REF</span>`
+          : coach.coach_name;
+
+        const byDate    = coach.by_date     || [];
+        const attByDate = coach.att_by_date || [];
+        const dateCells = dates.map((d, di) => {
+          const val = byDate[di];
+          if (val === null || val === undefined) return `<td class="wk-cell empty">·</td>`;
+          const cls  = val ? "yes" : "no";
+          const icon = val ? "✓" : "✗";
+          const att  = attByDate[di];
+          const bg   = att === true                    ? "background:#1b5e20"
+                     : att === false && d >= ATT_START ? "background:#b71c1c"
+                     : "";
+          return `<td class="wk-cell" style="${bg}"><span class="tick-item ${cls}">${icon}</span></td>`;
         }).join("");
-        return `<td class="wk-cell">${items}</td>`;
-      }).join("");
 
-      const totSess     = sess.total_sessions || 0;
-      const totAssigned = sess.total_assigned  || 0;
-      const rate        = totSess > 0 ? Math.round(100 * totAssigned / totSess) : 0;
-      const rateClass   = rate >= 80 ? "good" : rate >= 50 ? "mid" : "bad";
+        const rate      = totSess > 0 ? Math.round(100 * coach.count / totSess) : 0;
+        const rateClass = rate >= 80 ? "good" : rate >= 50 ? "mid" : "bad";
 
-      const subs = (sess.top_substitutes || []).map(s =>
-        `<span class="sub-coach">↪ <strong>${s.coach_name}</strong> ${s.pct}%</span>`
-      ).join("");
+        const hasAtt = Array.isArray(coach.att_by_date);
+        let attCount = 0, attTotSess = 0;
+        if (hasAtt) {
+          dates.forEach((d, di) => {
+            if (d < ATT_START || byDate[di] !== true) return;
+            attTotSess++;
+            if (attByDate[di] === true) attCount++;
+          });
+        }
+        const attPct   = attTotSess > 0 ? Math.round(100 * attCount / attTotSess) : 0;
+        const attClass = attPct >= 80 ? "good" : (attCount === 0 && attTotSess > 0) ? "bad" : "mid";
+        const attCell  = !hasAtt
+          ? `<td class="num total-cell">—</td>`
+          : attTotSess > 0
+            ? `<td class="num total-cell ${attClass}">${attCount}/${attTotSess}<small>${attPct}%</small></td>`
+            : `<td class="num total-cell">—</td>`;
 
-      // Escape team name for data attribute
-      const safeKey = sess.team.replace(/"/g, "&quot;");
+        let row = `<tr class="sess${isFirst ? " team-first" : ""} ${cid} hidden">`;
 
-      html += `<tr class="sess ${cid} hidden">
-        <td class="name">${sess.team}</td>
-        <td class="coach">${sess.ref_coach_name || "—"}${subs}</td>
-        ${weekCells}
-        <td class="num total-cell ${rateClass}">${totAssigned}/${totSess}<small>${rate}%</small></td>
-        <td class="comment-col">
-          <textarea class="comment-cell" data-team="${safeKey}"
-            placeholder="Configure ⚙ to enable comments" disabled
-            onblur="saveComment(this.dataset.team, this.value)"
-          ></textarea>
-        </td>
-      </tr>`;
+        if (isFirst) {
+          row += `<td class="name" rowspan="${nCoaches}" style="position:sticky;left:0;background:var(--white)">${sess.team}</td>`;
+        }
+
+        row += `<td class="coach-cell" style="position:sticky;left:220px;background:var(--white)">${coachLabel}</td>`;
+        row += `<td class="num total-cell ${rateClass}">${coach.count}/${totSess}<small>${rate}%</small></td>`;
+        row += attCell;
+
+        if (isFirst) {
+          row += `<td class="comment-col" rowspan="${nCoaches}">
+            <textarea class="comment-cell" data-team="${safeKey}"
+              placeholder="Add a comment…"
+              onblur="saveComment(this.dataset.team, this.value)"
+            ></textarea>
+          </td>`;
+        }
+
+        row += dateCells;
+        row += `</tr>`;
+        html += row;
+      });
     }
   }
 
@@ -552,10 +735,152 @@ function renderTerm(data) {
   fillCommentCells();
 }
 
+// ── RENDER COACHES TAB ────────────────────────────────────────────────────────
+function renderCoaches(data) {
+  const wrap = document.getElementById("coaches-table-wrap");
+
+  if (!data || !Array.isArray(data.coaches) || !Array.isArray(data.dates) || !data.dates.length) {
+    wrap.innerHTML = '<div class="empty">Coach-level data not available. Run enrich-attendance.mjs to generate it.</div>';
+    return;
+  }
+
+  const dates   = data.dates;
+  const coaches = data.coaches;
+
+  const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAY_ABBR   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  // Date column headers (two rows: "May 2" / "Sa")
+  const dtHdrs1 = dates.map(d => {
+    const dt = new Date(d + 'T00:00:00Z');
+    return `<th class="dt-hdr">${MONTH_ABBR[dt.getUTCMonth()]} ${dt.getUTCDate()}</th>`;
+  }).join('');
+
+  const dtHdrs2 = dates.map(d => {
+    const dt = new Date(d + 'T00:00:00Z');
+    return `<th style="font-size:9px;padding:2px 3px">${DAY_ABBR[dt.getUTCDay()]}</th>`;
+  }).join('');
+
+  const TOTAL_COLS = 1 + dates.length + 2;
+
+  let html = `<table class="coaches-table">
+    <thead>
+      <tr>
+        <th class="left" rowspan="2" style="min-width:220px;position:sticky;left:0;z-index:2;background:var(--slate)">Coach / Team</th>
+        <th rowspan="2" style="min-width:68px">Consistencia</th>
+        <th rowspan="2" style="min-width:68px">Asistencia</th>
+        ${dtHdrs1}
+      </tr>
+      <tr class="sub"><th></th><th></th>${dtHdrs2}</tr>
+    </thead>
+    <tbody>`;
+
+  coaches.forEach((coach, ci) => {
+    const cid   = `cc_${ci}`;
+    const nSess = coach.sessions.length;
+
+    // Overall coach stats for badge
+    const totalCount = coach.sessions.reduce((s, sess) => s + (sess.count || 0), 0);
+    const totalSess  = coach.sessions.reduce((s, sess) => s + (sess.total_sessions || 0), 0);
+    const consPct    = totalSess > 0 ? Math.round(100 * totalCount / totalSess) : 0;
+    const consClass  = consPct >= 80 ? 'ok' : consPct >= 50 ? 'mid' : 'bad';
+
+    // Att % from ATT_START across all sessions
+    let coachAttCount = 0, coachAttTotal = 0;
+    coach.sessions.forEach(sess => {
+      dates.forEach((d, di) => {
+        if (d < ATT_START || (sess.by_date || [])[di] !== true) return;
+        coachAttTotal++;
+        if ((sess.att_by_date || [])[di] === true) coachAttCount++;
+      });
+    });
+    const attPct   = coachAttTotal > 0 ? Math.round(100 * coachAttCount / coachAttTotal) : 0;
+    const attClass = attPct >= 80 ? 'ok' : (coachAttCount === 0 && coachAttTotal > 0) ? 'bad' : 'mid';
+
+    const phone   = COACH_PHONES[coach.coach_id];
+    const waBtn   = phone
+      ? `<a class="wa-btn" href="https://wa.me/${phone}?text=${WA_MSG}" target="_blank" onclick="event.stopPropagation()">
+           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L0 24l6.335-1.51A11.933 11.933 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.369l-.36-.214-3.724.888.923-3.638-.235-.374A9.818 9.818 0 1112 21.818z"/></svg>
+           WhatsApp
+         </a>`
+      : '';
+
+    html += `<tr class="cat" onclick="toggle('${cid}', this)">
+      <td colspan="${TOTAL_COLS}" style="position:sticky;left:0;background:#eceff1">
+        <i class="arrow">▶</i>
+        ${coach.coach_name}
+        <span class="cat-badge gray">${nSess} team${nSess !== 1 ? 's' : ''}</span>
+        <span class="cat-badge ${consClass}">Consist. ${consPct}%</span>
+        <span class="cat-badge ${attClass}">Asist. ${attPct}%</span>
+        ${waBtn}
+      </td>
+    </tr>`;
+
+    coach.sessions.forEach((sess, si) => {
+      const totSess = sess.total_sessions || 0;
+
+      // Date cells
+      const dateCells = dates.map((d, di) => {
+        const val = (sess.by_date || [])[di];
+        if (val === null || val === undefined) {
+          return `<td class="wk-cell empty">·</td>`;
+        }
+        const cls  = val ? 'yes' : 'no';
+        const icon = val ? '✓' : '✗';
+        const att  = (sess.att_by_date || [])[di];
+        const bg   = att === true                    ? 'background:#1b5e20'
+                   : att === false && d >= ATT_START ? 'background:#b71c1c'
+                   : '';
+        return `<td class="wk-cell" style="${bg}"><span class="tick-item ${cls}">${icon}</span></td>`;
+      }).join('');
+
+      const teamLabel = sess.is_ref
+        ? `${sess.team}&nbsp;<span class="ref-badge">REF</span>`
+        : sess.team;
+
+      const count     = sess.count || 0;
+      const rate      = totSess > 0 ? Math.round(100 * count / totSess) : 0;
+      const rateClass = rate >= 80 ? 'good' : rate >= 50 ? 'mid' : 'bad';
+
+      // Att from May 4 onwards: count sessions where coach was present, and how many submitted
+      const hasAtt = Array.isArray(sess.att_by_date) && Array.isArray(sess.by_date);
+      let attCount = 0, attTotSess = 0;
+      if (hasAtt) {
+        dates.forEach((d, di) => {
+          if (d < ATT_START || (sess.by_date || [])[di] !== true) return;
+          attTotSess++;
+          if ((sess.att_by_date || [])[di] === true) attCount++;
+        });
+      }
+      const attPct   = attTotSess > 0 ? Math.round(100 * attCount / attTotSess) : 0;
+      const attClass = attPct >= 80 ? 'good' : (attCount === 0 && attTotSess > 0) ? 'bad' : 'mid';
+      const attCell  = !hasAtt
+        ? `<td class="num total-cell">—</td>`
+        : attTotSess > 0
+          ? `<td class="num total-cell ${attClass}">${attCount}/${attTotSess}<small>${attPct}%</small></td>`
+          : `<td class="num total-cell">—</td>`;
+
+      html += `<tr class="sess${si === 0 ? ' team-first' : ''} ${cid} hidden">
+        <td class="team-cell" style="position:sticky;left:0;background:var(--white)">${teamLabel}</td>
+        <td class="num total-cell ${rateClass}">${count}/${totSess}<small>${rate}%</small></td>
+        ${attCell}
+        ${dateCells}
+      </tr>`;
+    });
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
 // ── BOOT ─────────────────────────────────────────────────────────────────────
 Promise.all([loadTermData(), loadComments()])
   .then(([termData]) => {
-    if (termData) renderTerm(termData);
+    if (termData) {
+      window._termData = termData;
+      renderTerm(termData);
+      renderCoaches(termData);
+    }
   })
   .catch(err => {
     show("error-banner", "Dashboard error: " + err.message);

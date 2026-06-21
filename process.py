@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import urllib.request
 from collections import Counter
 from datetime import datetime
 
@@ -60,15 +61,106 @@ DAY_MAP = {
 # Day-code → chronological index for sorting (Mon first, Sat last)
 DAY_ORDER = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5}
 
-# Term view: fixed date range (12 weeks)
+# Term view: fixed start, dynamic end (last date in sessions.csv)
 TERM_START = datetime(2026, 4, 20)   # Monday week 1
-TERM_END   = datetime(2026, 7, 12)   # Sunday week 12
+TERM_END   = datetime(2026, 7, 12)   # Updated dynamically below from CSV data
 
 # Day-of-week → short label (English 2-letter abbreviations)
 DAY_ABBR = {
     "Monday": "Mo", "Tuesday": "Tu", "Wednesday": "We",
     "Thursday": "Th", "Friday": "Fr", "Saturday": "Sa",
 }
+
+
+# ── BARCA ACADEMY ATTENDANCE API ─────────────────────────────────────────────
+
+BARCA_TOKEN = "bff40f954954bf2c8fafa4cc1dbb7fe06b14de8afb9c754e19bb9bdcf3b970b5"
+BARCA_API   = "https://attendance.barcaacademy.sg/api/attendance/logs"
+
+
+def _sig_tokens(name):
+    """Significant word tokens: strip parentheticals, skip short words/stopwords."""
+    name = re.sub(r'\([^)]*\)', '', name)
+    skip = {'BIN', 'BTE', 'S/O', 'D/O', 'A', 'B', 'AND', 'THE', 'AL'}
+    return [t for t in name.upper().split() if t not in skip and len(t) > 1]
+
+
+def _resolve_coach_name(api_name, name_to_id, word_to_cids):
+    norm = api_name.upper().strip()
+    cid = name_to_id.get(norm)
+    if cid is not None:
+        return cid
+    # Token-based voting fallback
+    tokens = _sig_tokens(api_name)
+    if not tokens or not word_to_cids:
+        return None
+    votes = Counter()
+    for t in tokens:
+        for c in word_to_cids.get(t, set()):
+            votes[c] += 1
+    if not votes:
+        return None
+    top = max(votes.values())
+    min_votes = 1 if len(tokens) == 1 else 2
+    if top < min_votes:
+        return None
+    winners = [c for c, cnt in votes.items() if cnt == top]
+    return winners[0] if len(winners) == 1 else None
+
+
+def fetch_attendance_lookup(session_dates, name_to_id=None, word_to_cids=None):
+    """
+    Fetch player attendance from Barca Academy API for the given dates.
+    Returns a set of (coach_id: int, date: str "YYYY-MM-DD") where
+    the coach submitted at least one player's attendance on that date.
+    name_to_id: dict of normalized-uppercase coach name → coach_id int.
+    word_to_cids: inverted index word → set of coach_ids (for fuzzy matching).
+    """
+    lookup = set()
+    unmatched_names = set()
+    dates = sorted(session_dates)
+    print(f"  Fetching player attendance for {len(dates)} session dates …")
+
+    for date_str in dates:
+        page = 1
+        while True:
+            url = f"{BARCA_API}?from={date_str}&to={date_str}&page={page}"
+            req = urllib.request.Request(
+                url, headers={"Authorization": f"Bearer {BARCA_TOKEN}"}
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    data = json.loads(resp.read().decode())
+            except Exception as e:
+                print(f"    ⚠  API error {date_str} p{page}: {e}")
+                break
+
+            items = data if isinstance(data, list) else (data.get("data") or [])
+            total_pages = data.get("pages", 1) if isinstance(data, dict) else 1
+
+            for s in items:
+                coach_name = s.get("coach", "")
+                players    = s.get("logs") or s.get("players") or []
+                if not coach_name or not players:
+                    continue
+                cid = _resolve_coach_name(
+                    coach_name, name_to_id or {}, word_to_cids or {}
+                )
+                if cid is not None:
+                    lookup.add((cid, date_str))
+                else:
+                    unmatched_names.add(coach_name)
+
+            if page >= total_pages:
+                break
+            page += 1
+
+    if unmatched_names:
+        print(f"    ⚠  {len(unmatched_names)} API coach names not matched to an ID:")
+        for n in sorted(unmatched_names)[:10]:
+            print(f"       {n}")
+    print(f"    → {len(lookup)} coach-date pairs with player attendance")
+    return lookup
 
 
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
@@ -433,10 +525,11 @@ def reconcile(teams, sessions):
 
 # ── TERM RECONCILIATION ───────────────────────────────────────────────────────
 
-def reconcile_term(teams, sessions):
+def reconcile_term(teams, sessions, att_lookup=None):
     """
     Session-by-session view for the term (TERM_START – TERM_END).
     Returns 12 week columns; each team cell shows ✓/✗ per actual session.
+    att_lookup: set of (coach_id, "YYYY-MM-DD") where player attendance was submitted.
     """
     from datetime import timedelta
 
@@ -510,67 +603,121 @@ def reconcile_term(teams, sessions):
             for sess in rows:
                 date_groups.setdefault(sess["date"], []).append(sess)
 
-            # Build by_week and count substitute appearances (date-level)
-            by_week = [[] for _ in range(12)]
-            total_assigned = 0
-            sub_counts: dict[int, int] = {}  # coach_id → #dates they appeared (excl. ref)
+            total_sess = len(date_groups)
+            ref_id_int = int(ref_id) if pd.notna(ref_id) else None
 
-            for sess_date in sorted(date_groups.keys()):
-                date_rows = date_groups[sess_date]
-                sess_dt   = sess_date.to_pydatetime()
-
-                # ✓ if ref coach was among the attendees that day
-                matching = [r for r in date_rows
-                            if pd.notna(ref_id) and pd.notna(r["coach_id"])
-                            and int(r["coach_id"]) == int(ref_id)]
-                is_match = len(matching) > 0
-                if is_match:
-                    total_assigned += 1
-                    actual_id = matching[0]["coach_id"]
-                else:
-                    actual_id = date_rows[0]["coach_id"]
-
-                # Count non-ref coaches for substitute leaderboard
-                seen_this_date: set[int] = set()
-                for r in date_rows:
-                    cid = r["coach_id"]
-                    if pd.notna(cid) and (not pd.notna(ref_id) or int(cid) != int(ref_id)):
-                        cid_int = int(cid)
-                        if cid_int not in seen_this_date:
-                            seen_this_date.add(cid_int)
-                            sub_counts[cid_int] = sub_counts.get(cid_int, 0) + 1
-
-                actual_name = (id_to_name.get(int(actual_id), f"#{int(actual_id)}")
-                               if pd.notna(actual_id) else "—")
-
+            # Map each date to week index and day abbreviation
+            date_to_week_idx: dict = {}
+            date_to_day: dict = {}
+            for sess_date, date_rows in date_groups.items():
+                sess_dt = sess_date.to_pydatetime()
+                date_to_day[sess_date] = DAY_ABBR.get(date_rows[0]["day_of_week"], "?")
                 for i, w in enumerate(weeks):
                     if w["start"] <= sess_dt <= w["end"]:
-                        by_week[i].append({
-                            "date":         sess_dt.strftime("%d/%m"),
-                            "day":          DAY_ABBR.get(date_rows[0]["day_of_week"], "?"),
-                            "assigned":     bool(is_match),
-                            "actual_coach": actual_name,
-                        })
+                        date_to_week_idx[sess_date] = i
                         break
 
-            total_sess = len(date_groups)
-            top_subs = sorted(sub_counts.items(), key=lambda x: -x[1])[:2]
-            top_substitutes = [
-                {"coach_id":   cid,
-                 "coach_name": id_to_name.get(cid, f"#{cid}"),
-                 "count":      cnt,
-                 "pct":        round(100 * cnt / total_sess) if total_sess else 0}
-                for cid, cnt in top_subs
-            ]
+            # Per-date: which coaches attended
+            date_attendees: dict = {}   # sess_date → set of coach_ids present
+            coach_dates: dict[int, set] = {}  # coach_id → set of dates attended
+            for sess_date, date_rows in date_groups.items():
+                present: set[int] = set()
+                for r in date_rows:
+                    cid = r["coach_id"]
+                    if pd.notna(cid):
+                        cid_int = int(cid)
+                        present.add(cid_int)
+                        coach_dates.setdefault(cid_int, set()).add(sess_date)
+                date_attendees[sess_date] = present
+
+            total_assigned = len(coach_dates.get(ref_id_int, set())) if ref_id_int else 0
+
+            # Ordered coach list: ref first, then others by count desc
+            other_ids = sorted(
+                [c for c in coach_dates if c != ref_id_int],
+                key=lambda c: -len(coach_dates[c])
+            )
+            coach_entries = ([(ref_id_int, True)] if ref_id_int is not None else []) + \
+                            [(c, False) for c in other_ids]
+
+            # Aggregate stats per coach (no per-week detail here)
+            coaches_summary = []
+            for cid_int, is_ref in coach_entries:
+                count = len(coach_dates.get(cid_int, set()))
+                att_count = sum(
+                    1 for d in coach_dates.get(cid_int, set())
+                    if att_lookup and (cid_int, d.strftime("%Y-%m-%d")) in att_lookup
+                ) if att_lookup else 0
+                coaches_summary.append({
+                    "coach_id":   cid_int,
+                    "coach_name": ref_name if is_ref else id_to_name.get(cid_int, f"#{cid_int}"),
+                    "is_ref":     is_ref,
+                    "count":      count,
+                    "pct":        round(100 * count / total_sess) if total_sess else 0,
+                    "att_count":  att_count,
+                })
+
+            coach_info = {c["coach_id"]: c for c in coaches_summary}
+            all_coach_ids = [e[0] for e in coach_entries]
+
+            # by_week: 12 items, each a list of sessions [{day, coaches}]
+            # Handles teams with 1 or 2 sessions per week naturally.
+            by_week: list = [[] for _ in range(12)]
+            for sess_date in sorted(date_groups.keys()):
+                week_idx = date_to_week_idx.get(sess_date)
+                if week_idx is None:
+                    continue
+                date_key = sess_date.strftime("%Y-%m-%d")
+                present  = date_attendees[sess_date]
+                by_week[week_idx].append({
+                    "day": date_to_day[sess_date],
+                    "coaches": [
+                        {
+                            "coach_id":   cid_int,
+                            "coach_name": coach_info[cid_int]["coach_name"],
+                            "is_ref":     coach_info[cid_int]["is_ref"],
+                            "attended":   cid_int in present,
+                            "att":        bool(
+                                att_lookup and cid_int in present
+                                and (cid_int, date_key) in att_lookup
+                            ),
+                        }
+                        for cid_int in all_coach_ids
+                    ],
+                })
+
+            # coaches[] — per-coach weekly presence (required by enrich-attendance.mjs)
+            coaches = []
+            for cid_int, is_ref in coach_entries:
+                c_by_week = []
+                for week_sessions in by_week:
+                    if not week_sessions:
+                        c_by_week.append(None)
+                    else:
+                        attended = any(
+                            c["attended"]
+                            for ws in week_sessions
+                            for c in ws["coaches"]
+                            if c["coach_id"] == cid_int
+                        )
+                        c_by_week.append(attended)
+                coaches.append({
+                    "coach_id":   cid_int,
+                    "coach_name": ref_name if is_ref else id_to_name.get(cid_int, f"#{cid_int}"),
+                    "is_ref":     is_ref,
+                    "count":      len(coach_dates.get(cid_int, set())),
+                    "by_week":    c_by_week,
+                })
 
             sdata = {
-                "team":             str(team["team"]),
-                "ref_coach_id":     int(ref_id) if pd.notna(ref_id) else None,
-                "ref_coach_name":   ref_name,
-                "top_substitutes":  top_substitutes,
-                "total_sessions":   total_sess,
-                "total_assigned":   total_assigned,
-                "by_week":          by_week,
+                "team":            str(team["team"]),
+                "ref_coach_id":    ref_id_int,
+                "ref_coach_name":  ref_name,
+                "total_sessions":  total_sess,
+                "total_assigned":  total_assigned,
+                "coaches_summary": coaches_summary,
+                "coaches":         coaches,
+                "by_week":         by_week,
             }
             category["sessions"].append(sdata)
 
@@ -599,6 +746,13 @@ def main():
         print("  ⚠  No sessions found. Check the sessions CSV has data from 2026 onwards.")
         return
 
+    # Dynamic TERM_END: last date in the CSV (within the term window)
+    global TERM_END
+    term_sessions = sessions[sessions["date"] >= pd.Timestamp(TERM_START)]
+    if not term_sessions.empty:
+        TERM_END = term_sessions["date"].max().to_pydatetime()
+        print(f"  TERM_END ajustado al último día del CSV: {TERM_END:%d %b %Y}")
+
     print("Reconciling …")
     result = reconcile(teams, sessions)
 
@@ -621,7 +775,26 @@ def main():
     print(f"Saved → {out}")
 
     print(f"Reconciling term view ({TERM_START:%d %b} – {TERM_END:%d %b}) …")
-    term_result = reconcile_term(teams, sessions)
+    term_sess = sessions[
+        (sessions["date"] >= pd.Timestamp(TERM_START)) &
+        (sessions["date"] <= pd.Timestamp(TERM_END))
+    ]
+    session_dates = set(term_sess["date"].dt.strftime("%Y-%m-%d").unique())
+    # Build name→id and word→cids maps so the API's coach-name strings resolve
+    # to numeric IDs (with fuzzy token-based fallback for name format differences)
+    from collections import defaultdict as _dd
+    name_to_id: dict[str, int] = {}
+    word_to_cids: dict[str, set] = _dd(set)
+    for _, row in sessions.iterrows():
+        cid  = row["coach_id"]
+        name = str(row.get("coach_name", "")).strip()
+        if pd.notna(cid) and name and name not in ("", "nan"):
+            cid_int = int(cid)
+            name_to_id[name.upper()] = cid_int
+            for w in _sig_tokens(name):
+                word_to_cids[w].add(cid_int)
+    att_lookup = fetch_attendance_lookup(session_dates, name_to_id, word_to_cids)
+    term_result = reconcile_term(teams, sessions, att_lookup)
     term_counts = sum(
         s["total_sessions"] for c in term_result["categories"] for s in c["sessions"]
     )
