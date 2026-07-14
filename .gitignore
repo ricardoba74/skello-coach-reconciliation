@@ -5,7 +5,11 @@ __pycache__/
 .DS_Store
 data/output.json
 data/term_output.json
+data/term_output_*.json
 data/sessions.csv
+data/sessions_cache.json
+data/sessions_cache_*.json
+data/terms_index.json
 .claude/
 .playwright-mcp/
 dashboard-*.png

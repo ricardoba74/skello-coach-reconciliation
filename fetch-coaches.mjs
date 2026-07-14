@@ -116,12 +116,17 @@ console.log(`✅  data/coaches.csv guardado (${records.length} filas)`);
 const htmlPath = join(__dir, 'index.html');
 let html = readFileSync(htmlPath, 'utf8');
 
-const newConst = `const COACH_PHONES = ${JSON.stringify(sorted)};`;
-const updated  = html.replace(/const COACH_PHONES = \{[^}]*\};/, newConst);
+const phonesRegex = /const COACH_PHONES = \{[^}]*\};/;
+const newConst    = `const COACH_PHONES = ${JSON.stringify(sorted)};`;
 
-if (updated === html) {
+if (!phonesRegex.test(html)) {
   console.warn('⚠️   No se encontró COACH_PHONES en index.html — revisa el formato');
 } else {
-  writeFileSync(htmlPath, updated, 'utf8');
-  console.log(`✅  COACH_PHONES actualizado en index.html (${Object.keys(sorted).length} entradas)`);
+  const updated = html.replace(phonesRegex, newConst);
+  if (updated === html) {
+    console.log('  COACH_PHONES sin cambios en index.html');
+  } else {
+    writeFileSync(htmlPath, updated, 'utf8');
+    console.log(`✅  COACH_PHONES actualizado en index.html (${Object.keys(sorted).length} entradas)`);
+  }
 }

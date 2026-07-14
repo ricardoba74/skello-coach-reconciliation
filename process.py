@@ -23,33 +23,62 @@ except ImportError:
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
 
 TEAMS_SHEET_ID    = "1COqOZLAQNO437dPZgQpBWsgjreI-FJlbPDfdwHPeDcA"
-TEAMS_GID         = 609166241   # tab "New info teams"
+TEAMS_GID         = 609166241   # tab "New info teams" — shared by every term
 
-SESSIONS_SHEET_ID = "1uGuXupAHufEPX1BnmZmY_r3PbGnHlpVot8i6a6Y2g_g"
-SESSIONS_GID      = 0           # tab "Data"
+# One entry per term. To add a new term: append here (and share its sessions
+# sheet, if it's a new one, with coach-reconciliation-reader@skello-coach-
+# reconciliation.iam.gserviceaccount.com as Viewer) — no other code changes
+# needed, index.html and enrich-attendance.mjs both drive off data/terms_index.json.
+TERMS = [
+    {
+        "id":                "t2_2026",
+        "label":             "Term 2 2026",
+        "start":             datetime(2026, 4, 20),
+        "end":               datetime(2026, 7, 12),
+        "sessions_sheet_id": "1wYeFyD9LvyyrvkMz-VoikeB_QAajxKtfUkuUAojDBg8",  # "KPIs Skello T2 2026"
+        "sessions_gid":      0,   # tab "Data"
+        "att_start":         "2026-05-04",  # historical exception: att tracking launched mid-term
+    },
+    {
+        "id":                "t3_2026",
+        "label":             "Term 3 2026",
+        "start":             datetime(2026, 7, 13),
+        "end":               datetime(2026, 10, 4),
+        "sessions_sheet_id": "1wYeFyD9LvyyrvkMz-VoikeB_QAajxKtfUkuUAojDBg8",  # same sheet, filtered by date
+        "sessions_gid":      0,
+        "att_start":         "2026-07-13",  # = term start, no grace period
+    },
+    # Term 4 2026 (05/10/2026 – 10/01/2027): add once it's imminent — confirm
+    # whether it gets its own sessions sheet or keeps sharing this one.
+]
 
 START_DATE        = datetime(2026, 1, 1)
 VALID_ACTIVITIES  = {"Academy", "Select", "GK"}
 VALID_DAYS        = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
 
 # Column positions (0-indexed) in "New info teams" tab
+#
+# Matched by header text, not position — a column inserted/renamed upstream
+# (this tab is hand-edited) no longer silently shifts every field after it.
+# Each entry lists acceptable header names in priority order (older CSV
+# exports and the live sheet don't always agree on the exact label).
 TEAMS_COL = {
-    "team":       3,   # D – full name incl. day+time suffix for Academy/GK
-    "skello":     4,   # E – Skello session name (matches col H in sessions file)
-    "type":       11,  # L  (Academy / Select / GK)
-    "coach_id":   27,  # AB
-    "coach_name": 28,  # AC
+    "team":       ["TEAM"],
+    "skello":     ["SKELLO NAME"],
+    "type":       ["Academy/Select"],
+    "coach_id":   ["ID Coach 1"],
+    "coach_name": ["Coach", "Coach 1 2026"],
 }
 
-# Column positions (0-indexed) in "Data" tab
+# Column headers in "Data" tab (Skello export) — also matched by name.
 SESSIONS_COL = {
-    "date":       5,   # F  DD/MM/YYYY
-    "session":    7,   # H  session/team name (matches col E in teams file)
-    "start":      9,   # J  HH:MM start time
-    "status":     18,  # S  "No clock in" rows excluded
-    "coach_id":   20,  # U  numeric ID
-    "activity":   23,  # X  Academy / Select / GK / …
-    "coach_name": 14,  # O  Full Name — used to build id→name lookup
+    "date":       ["Date"],
+    "session":    ["Work position or absence type"],
+    "start":      ["Start"],
+    "status":     ["Status"],
+    "coach_id":   ["ID"],
+    "activity":   ["Activity"],
+    "coach_name": ["Full Name"],
 }
 
 # Day-code → Python weekday name (uppercase from col D suffix)
@@ -61,10 +90,6 @@ DAY_MAP = {
 # Day-code → chronological index for sorting (Mon first, Sat last)
 DAY_ORDER = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5}
 
-# Term view: fixed start, dynamic end (last date in sessions.csv)
-TERM_START = datetime(2026, 4, 20)   # Monday week 1
-TERM_END   = datetime(2026, 7, 12)   # Updated dynamically below from CSV data
-
 # Day-of-week → short label (English 2-letter abbreviations)
 DAY_ABBR = {
     "Monday": "Mo", "Tuesday": "Tu", "Wednesday": "We",
@@ -74,7 +99,21 @@ DAY_ABBR = {
 
 # ── BARCA ACADEMY ATTENDANCE API ─────────────────────────────────────────────
 
-BARCA_TOKEN = "bff40f954954bf2c8fafa4cc1dbb7fe06b14de8afb9c754e19bb9bdcf3b970b5"
+def _load_env():
+    """Populate os.environ from a local .env file (KEY=value per line), if present."""
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.exists(env_path):
+        return
+    with open(env_path, encoding="utf-8") as f:
+        for line in f:
+            m = re.match(r'^([A-Z_][A-Z0-9_]*)\s*=\s*(.+)$', line.strip())
+            if m and m.group(1) not in os.environ:
+                os.environ[m.group(1)] = m.group(2).strip().strip('"\'')
+
+
+_load_env()
+
+BARCA_TOKEN = os.environ.get("BARCA_ATTENDANCE_TOKEN", "")
 BARCA_API   = "https://attendance.barcaacademy.sg/api/attendance/logs"
 
 
@@ -116,6 +155,10 @@ def fetch_attendance_lookup(session_dates, name_to_id=None, word_to_cids=None):
     name_to_id: dict of normalized-uppercase coach name → coach_id int.
     word_to_cids: inverted index word → set of coach_ids (for fuzzy matching).
     """
+    if not BARCA_TOKEN:
+        print("  ⚠  BARCA_ATTENDANCE_TOKEN no configurado (.env) — se omite asistencia de jugadores.")
+        return set()
+
     lookup = set()
     unmatched_names = set()
     dates = sorted(session_dates)
@@ -174,6 +217,17 @@ def _sheet_to_df(gc, sheet_id, gid):
     return pd.DataFrame(records[1:], columns=records[0])
 
 
+def _unique_session_sheets():
+    """(sheet_id, gid) pairs referenced across TERMS, deduplicated — terms that
+    share a sheet (e.g. Term 2 and Term 3 today) only get fetched once."""
+    seen = []
+    for t in TERMS:
+        key = (t["sessions_sheet_id"], t["sessions_gid"])
+        if key not in seen:
+            seen.append(key)
+    return seen
+
+
 def load_via_api():
     try:
         import gspread
@@ -198,10 +252,12 @@ def load_via_api():
     print("  Fetching teams sheet …")
     teams_raw = _sheet_to_df(gc, TEAMS_SHEET_ID, TEAMS_GID)
 
-    print("  Fetching sessions sheet …")
-    sessions_raw = _sheet_to_df(gc, SESSIONS_SHEET_ID, SESSIONS_GID)
+    sessions_raw_by_sheet = {}
+    for sheet_id, gid in _unique_session_sheets():
+        print(f"  Fetching sessions sheet {sheet_id[:12]}… (gid={gid}) …")
+        sessions_raw_by_sheet[(sheet_id, gid)] = _sheet_to_df(gc, sheet_id, gid)
 
-    return teams_raw, sessions_raw
+    return teams_raw, sessions_raw_by_sheet
 
 
 def load_via_csv():
@@ -215,14 +271,32 @@ def load_via_csv():
             f"  File 1 tab 'New info teams' → {teams_path}\n"
             f"  File 2 tab 'Data'           → {sessions_path}"
         )
-    return pd.read_csv(teams_path, header=0), pd.read_csv(sessions_path, header=0)
+    teams_raw    = pd.read_csv(teams_path, header=0)
+    sessions_raw = pd.read_csv(sessions_path, header=0)
+    # --csv is a local/dev fallback — one file stands in for every configured term.
+    sessions_raw_by_sheet = {key: sessions_raw for key in _unique_session_sheets()}
+    return teams_raw, sessions_raw_by_sheet
 
 
 # ── DATA CLEANING ─────────────────────────────────────────────────────────────
 
-def _col(df, pos):
-    """Return column by zero-based position, or empty series if out of range."""
-    return df.iloc[:, pos] if pos < len(df.columns) else pd.Series([""] * len(df))
+def _col(df, names):
+    """
+    Return a column by header text — tries each name in `names` in order,
+    first match wins. For duplicate headers (e.g. "Data" tab has two columns
+    named "Status") the leftmost occurrence is used. Exits with a clear
+    error if none of the candidate names exist, instead of silently
+    misaligning every field after it.
+    """
+    for name in names:
+        matches = [i for i, c in enumerate(df.columns) if c == name]
+        if matches:
+            return df.iloc[:, matches[0]]
+    sys.exit(
+        f"Column not found: tried {names}.\n"
+        f"Available columns: {list(df.columns)}\n"
+        "The sheet's structure changed — update TEAMS_COL/SESSIONS_COL in process.py."
+    )
 
 
 def clean_teams(raw):
@@ -271,6 +345,30 @@ def clean_sessions(raw):
     df["coach_id"]     = pd.to_numeric(df["coach_id"], errors="coerce")
 
     return df.reset_index(drop=True)
+
+
+def write_sessions_cache(sessions, term_id):
+    """
+    Bridge file consumed by enrich-attendance.mjs, so it no longer needs to
+    parse data/sessions.csv by hand — works whether `sessions` came from the
+    CSV export or the Sheets API. One file per term (`sessions` should already
+    be filtered to that term's date range).
+    """
+    records = []
+    for _, row in sessions.iterrows():
+        cid = row["coach_id"]
+        records.append({
+            "date":     row["date"].strftime("%Y-%m-%d"),
+            "session":  str(row["session"]),
+            "status":   str(row["status"]),
+            "coach_id": int(cid) if pd.notna(cid) else None,
+            "activity": str(row["activity"]),
+        })
+    os.makedirs("data", exist_ok=True)
+    out = f"data/sessions_cache_{term_id}.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(records, f, ensure_ascii=False)
+    print(f"Saved → {out} ({len(records)} rows)")
 
 
 # ── MATCHING ──────────────────────────────────────────────────────────────────
@@ -525,20 +623,23 @@ def reconcile(teams, sessions):
 
 # ── TERM RECONCILIATION ───────────────────────────────────────────────────────
 
-def reconcile_term(teams, sessions, att_lookup=None):
+def reconcile_term(teams, sessions, att_lookup, term_start, term_end):
     """
-    Session-by-session view for the term (TERM_START – TERM_END).
-    Returns 12 week columns; each team cell shows ✓/✗ per actual session.
+    Session-by-session view for one term (term_start – term_end).
+    Returns one week column per 7-day span in the term; each team cell shows
+    ✓/✗ per actual session.
     att_lookup: set of (coach_id, "YYYY-MM-DD") where player attendance was submitted.
     """
     from datetime import timedelta
 
-    # Build 12 week descriptors
+    num_weeks = (term_end - term_start).days // 7 + 1
+
+    # Build week descriptors
     MONTHS_ES = {1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",
                  7:"Jul",8:"Ago",9:"Sep",10:"Oct",11:"Nov",12:"Dic"}
     weeks = []
-    for i in range(12):
-        ws = TERM_START + timedelta(weeks=i)
+    for i in range(num_weeks):
+        ws = term_start + timedelta(weeks=i)
         we = ws + timedelta(days=6)
         label = (f"{ws.day} {MONTHS_ES[ws.month]}"
                  if ws.month == we.month
@@ -561,14 +662,14 @@ def reconcile_term(teams, sessions, att_lookup=None):
 
     # Filter sessions to term range
     term_sess = sessions[
-        (sessions["date"] >= pd.Timestamp(TERM_START)) &
-        (sessions["date"] <= pd.Timestamp(TERM_END))
+        (sessions["date"] >= pd.Timestamp(term_start)) &
+        (sessions["date"] <= pd.Timestamp(term_end))
     ].copy()
 
     result = {
         "generated_at": datetime.now().isoformat(),
-        "term":  {"from": TERM_START.strftime("%Y-%m-%d"),
-                  "to":   TERM_END.strftime("%Y-%m-%d")},
+        "term":  {"from": term_start.strftime("%Y-%m-%d"),
+                  "to":   term_end.strftime("%Y-%m-%d")},
         "weeks": [{"num": w["num"], "label": w["label"], "dates": w["dates"]}
                   for w in weeks],
         "categories":         [],
@@ -660,9 +761,9 @@ def reconcile_term(teams, sessions, att_lookup=None):
             coach_info = {c["coach_id"]: c for c in coaches_summary}
             all_coach_ids = [e[0] for e in coach_entries]
 
-            # by_week: 12 items, each a list of sessions [{day, coaches}]
-            # Handles teams with 1 or 2 sessions per week naturally.
-            by_week: list = [[] for _ in range(12)]
+            # by_week: one item per week in the term, each a list of sessions
+            # [{day, coaches}]. Handles teams with 1 or 2 sessions per week naturally.
+            by_week: list = [[] for _ in range(num_weeks)]
             for sess_date in sorted(date_groups.keys()):
                 week_idx = date_to_week_idx.get(sess_date)
                 if week_idx is None:
@@ -732,29 +833,29 @@ def main():
     use_csv = "--csv" in sys.argv
     print(f"Loading via {'CSV' if use_csv else 'Google Sheets API'} …")
 
-    raw_teams, raw_sessions = load_via_csv() if use_csv else load_via_api()
+    raw_teams, raw_sessions_by_sheet = load_via_csv() if use_csv else load_via_api()
 
     print("  Cleaning teams …")
     teams = clean_teams(raw_teams)
     print(f"    {len(teams)} teams (Academy/Select/GK)")
 
     print("  Cleaning sessions …")
-    sessions = clean_sessions(raw_sessions)
-    print(f"    {len(sessions)} sessions ≥ {START_DATE:%Y-%m-%d}")
+    sessions_by_sheet = {
+        key: clean_sessions(raw) for key, raw in raw_sessions_by_sheet.items()
+    }
+    all_sessions = (
+        pd.concat(sessions_by_sheet.values(), ignore_index=True)
+        if sessions_by_sheet else pd.DataFrame()
+    )
+    print(f"    {len(all_sessions)} sessions ≥ {START_DATE:%Y-%m-%d} "
+          f"(across {len(sessions_by_sheet)} sheet(s))")
 
-    if sessions.empty:
-        print("  ⚠  No sessions found. Check the sessions CSV has data from 2026 onwards.")
+    if all_sessions.empty:
+        print("  ⚠  No sessions found. Check the sessions source has data from 2026 onwards.")
         return
 
-    # Dynamic TERM_END: last date in the CSV (within the term window)
-    global TERM_END
-    term_sessions = sessions[sessions["date"] >= pd.Timestamp(TERM_START)]
-    if not term_sessions.empty:
-        TERM_END = term_sessions["date"].max().to_pydatetime()
-        print(f"  TERM_END ajustado al último día del CSV: {TERM_END:%d %b %Y}")
-
     print("Reconciling …")
-    result = reconcile(teams, sessions)
+    result = reconcile(teams, all_sessions)
 
     total_a = sum(c["total"]["assigned"] for c in result["categories"])
     total_o = sum(c["total"]["other"]    for c in result["categories"])
@@ -774,18 +875,13 @@ def main():
         json.dump(result, f, indent=2, ensure_ascii=False)
     print(f"Saved → {out}")
 
-    print(f"Reconciling term view ({TERM_START:%d %b} – {TERM_END:%d %b}) …")
-    term_sess = sessions[
-        (sessions["date"] >= pd.Timestamp(TERM_START)) &
-        (sessions["date"] <= pd.Timestamp(TERM_END))
-    ]
-    session_dates = set(term_sess["date"].dt.strftime("%Y-%m-%d").unique())
-    # Build name→id and word→cids maps so the API's coach-name strings resolve
-    # to numeric IDs (with fuzzy token-based fallback for name format differences)
+    # Build name→id and word→cids maps (across every sheet) so the attendance
+    # API's coach-name strings resolve to numeric IDs (with fuzzy token-based
+    # fallback for name format differences).
     from collections import defaultdict as _dd
     name_to_id: dict[str, int] = {}
     word_to_cids: dict[str, set] = _dd(set)
-    for _, row in sessions.iterrows():
+    for _, row in all_sessions.iterrows():
         cid  = row["coach_id"]
         name = str(row.get("coach_name", "")).strip()
         if pd.notna(cid) and name and name not in ("", "nan"):
@@ -793,21 +889,50 @@ def main():
             name_to_id[name.upper()] = cid_int
             for w in _sig_tokens(name):
                 word_to_cids[w].add(cid_int)
-    att_lookup = fetch_attendance_lookup(session_dates, name_to_id, word_to_cids)
-    term_result = reconcile_term(teams, sessions, att_lookup)
-    term_counts = sum(
-        s["total_sessions"] for c in term_result["categories"] for s in c["sessions"]
-    )
-    term_assigned = sum(
-        s["total_assigned"] for c in term_result["categories"] for s in c["sessions"]
-    )
-    term_rate = round(100 * term_assigned / term_counts) if term_counts else 0
-    print(f"  {term_counts} sessions → {term_assigned} assigned ({term_rate}% match)")
 
-    term_out = "data/term_output.json"
-    with open(term_out, "w", encoding="utf-8") as f:
-        json.dump(term_result, f, indent=2, ensure_ascii=False)
-    print(f"Saved → {term_out}")
+    terms_manifest = []
+    for term in TERMS:
+        key      = (term["sessions_sheet_id"], term["sessions_gid"])
+        sessions = sessions_by_sheet[key]
+        term_sess = sessions[
+            (sessions["date"] >= pd.Timestamp(term["start"])) &
+            (sessions["date"] <= pd.Timestamp(term["end"]))
+        ]
+
+        print(f"\nReconciling {term['label']} ({term['start']:%d %b} – {term['end']:%d %b}) …")
+        write_sessions_cache(term_sess, term["id"])
+
+        session_dates = set(term_sess["date"].dt.strftime("%Y-%m-%d").unique())
+        att_lookup = fetch_attendance_lookup(session_dates, name_to_id, word_to_cids)
+        term_result = reconcile_term(teams, sessions, att_lookup, term["start"], term["end"])
+        term_result["term"]["att_start"] = term["att_start"]
+        term_result["term"]["label"]     = term["label"]
+
+        term_counts = sum(
+            s["total_sessions"] for c in term_result["categories"] for s in c["sessions"]
+        )
+        term_assigned = sum(
+            s["total_assigned"] for c in term_result["categories"] for s in c["sessions"]
+        )
+        term_rate = round(100 * term_assigned / term_counts) if term_counts else 0
+        print(f"  {term_counts} sessions → {term_assigned} assigned ({term_rate}% match)")
+
+        out_name = f"term_output_{term['id']}.json"
+        with open(f"data/{out_name}", "w", encoding="utf-8") as f:
+            json.dump(term_result, f, indent=2, ensure_ascii=False)
+        print(f"Saved → data/{out_name}")
+
+        terms_manifest.append({
+            "id":    term["id"],
+            "label": term["label"],
+            "file":  out_name,
+            "from":  term["start"].strftime("%Y-%m-%d"),
+            "to":    term["end"].strftime("%Y-%m-%d"),
+        })
+
+    with open("data/terms_index.json", "w", encoding="utf-8") as f:
+        json.dump(terms_manifest, f, indent=2, ensure_ascii=False)
+    print(f"Saved → data/terms_index.json ({len(terms_manifest)} terms)")
 
 
 if __name__ == "__main__":
