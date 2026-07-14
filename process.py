@@ -7,6 +7,7 @@ Usage:
   python process.py --csv     # reads from data/teams.csv + data/sessions.csv
 """
 
+import csv
 import json
 import os
 import re
@@ -623,7 +624,29 @@ def reconcile(teams, sessions):
 
 # ── TERM RECONCILIATION ───────────────────────────────────────────────────────
 
-def reconcile_term(teams, sessions, att_lookup, term_start, term_end):
+def load_airtable_names(path="data/coaches.csv"):
+    """
+    coach_id -> name, from the Airtable export written by fetch-coaches.mjs.
+    Used as a last-resort fallback so a coach who never appears with a
+    resolvable name in Skello sessions or the teams sheet still shows their
+    real name instead of a bare numeric ID.
+    """
+    names = {}
+    if not os.path.exists(path):
+        return names
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        next(reader, None)  # header
+        for row in reader:
+            if len(row) < 2:
+                continue
+            cid, name = row[0].strip(), row[1].strip()
+            if cid.isdigit() and name:
+                names[int(cid)] = name
+    return names
+
+
+def reconcile_term(teams, sessions, att_lookup, term_start, term_end, airtable_names):
     """
     Session-by-session view for one term (term_start – term_end).
     Returns one week column per 7-day span in the term; each team cell shows
@@ -659,6 +682,10 @@ def reconcile_term(teams, sessions, att_lookup, term_start, term_end):
         name = row["coach_name"]
         if pd.notna(cid) and name not in ("", "nan", "—", "TBC") and int(cid) not in id_to_name:
             id_to_name[int(cid)] = name
+    # Last resort: Airtable (coaches who never show up with a name in Skello
+    # or as a team's ref coach — otherwise they'd display as a bare "#id").
+    for cid, name in airtable_names.items():
+        id_to_name.setdefault(cid, name)
 
     # Filter sessions to term range
     term_sess = sessions[
@@ -890,6 +917,9 @@ def main():
             for w in _sig_tokens(name):
                 word_to_cids[w].add(cid_int)
 
+    airtable_names = load_airtable_names()
+    print(f"  {len(airtable_names)} coach names loaded from Airtable (fallback only)")
+
     terms_manifest = []
     for term in TERMS:
         key      = (term["sessions_sheet_id"], term["sessions_gid"])
@@ -904,7 +934,7 @@ def main():
 
         session_dates = set(term_sess["date"].dt.strftime("%Y-%m-%d").unique())
         att_lookup = fetch_attendance_lookup(session_dates, name_to_id, word_to_cids)
-        term_result = reconcile_term(teams, sessions, att_lookup, term["start"], term["end"])
+        term_result = reconcile_term(teams, sessions, att_lookup, term["start"], term["end"], airtable_names)
         term_result["term"]["att_start"] = term["att_start"]
         term_result["term"]["label"]     = term["label"]
 

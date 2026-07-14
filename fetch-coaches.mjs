@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * fetch-coaches.mjs
- * Descarga coaches de Airtable y actualiza COACH_PHONES en index.html.
+ * Descarga coaches de Airtable y actualiza COACH_PHONES y COACH_STATUS en
+ * index.html — ambos se derivan siempre de Airtable, nunca a mano.
  * Requiere: AIRTABLE_API_KEY en .env o en variable de entorno.
  */
 
@@ -70,10 +71,15 @@ console.log('Descargando coaches de Airtable…');
 const records = await fetchAll();
 console.log(`  ${records.length} registros descargados`);
 
-// Build phone map: coach_id (number) → phone string (with country code)
-const phones = {};
-const csvRows = ['ID,NAME SURNAME,PHONE,Status'];
-let noPhone = 0;
+// Status field in Airtable only ever has these two values.
+const STATUS_CODE = { 'Active': 'A', 'Former': 'F' };
+
+// Build phone + status maps: coach_id (number) → value
+const phones    = {};
+const statuses  = {};
+const csvRows   = ['ID,NAME SURNAME,PHONE,Status'];
+let noPhone     = 0;
+let badStatus   = new Set();
 
 for (const rec of records) {
   const f    = rec.fields || {};
@@ -97,36 +103,57 @@ for (const rec of records) {
 
   if (phone) phones[String(id)] = phone;
 
+  const statusCode = STATUS_CODE[stat];
+  if (statusCode) {
+    statuses[String(id)] = statusCode;
+  } else if (stat) {
+    badStatus.add(stat);
+  }
+
   csvRows.push(`${id},"${name}",${phone},${stat}`);
 }
 
-// Sort by numeric ID
-const sorted = Object.fromEntries(
-  Object.entries(phones).sort((a, b) => Number(a[0]) - Number(b[0]))
-);
+if (badStatus.size) {
+  console.warn(`⚠️   Valores de Status no reconocidos (ni Active ni Former): ${[...badStatus].join(', ')}`);
+}
 
-console.log(`  ${Object.keys(sorted).length} coaches con teléfono | ${noPhone} sin teléfono`);
+// Sort by numeric ID
+const sortByCoachId = obj => Object.fromEntries(
+  Object.entries(obj).sort((a, b) => Number(a[0]) - Number(b[0]))
+);
+const sortedPhones    = sortByCoachId(phones);
+const sortedStatuses  = sortByCoachId(statuses);
+
+console.log(`  ${Object.keys(sortedPhones).length} coaches con teléfono | ${noPhone} sin teléfono`);
+console.log(`  ${Object.keys(sortedStatuses).length} coaches con status (Active/Former)`);
 
 // ── Save coaches.csv ──────────────────────────────────────────────────────────
 const csvPath = join(__dir, 'data', 'coaches.csv');
 writeFileSync(csvPath, csvRows.join('\n') + '\n', 'utf8');
 console.log(`✅  data/coaches.csv guardado (${records.length} filas)`);
 
-// ── Patch COACH_PHONES in index.html ─────────────────────────────────────────
+// ── Patch COACH_PHONES / COACH_STATUS in index.html ──────────────────────────
 const htmlPath = join(__dir, 'index.html');
 let html = readFileSync(htmlPath, 'utf8');
 
-const phonesRegex = /const COACH_PHONES = \{[^}]*\};/;
-const newConst    = `const COACH_PHONES = ${JSON.stringify(sorted)};`;
+function patchConst(html, constName, valueObj) {
+  const regex    = new RegExp(`const ${constName} = \\{[^}]*\\};`);
+  const newConst = `const ${constName} = ${JSON.stringify(valueObj)};`;
 
-if (!phonesRegex.test(html)) {
-  console.warn('⚠️   No se encontró COACH_PHONES en index.html — revisa el formato');
-} else {
-  const updated = html.replace(phonesRegex, newConst);
-  if (updated === html) {
-    console.log('  COACH_PHONES sin cambios en index.html');
-  } else {
-    writeFileSync(htmlPath, updated, 'utf8');
-    console.log(`✅  COACH_PHONES actualizado en index.html (${Object.keys(sorted).length} entradas)`);
+  if (!regex.test(html)) {
+    console.warn(`⚠️   No se encontró ${constName} en index.html — revisa el formato`);
+    return html;
   }
+  const updated = html.replace(regex, newConst);
+  if (updated === html) {
+    console.log(`  ${constName} sin cambios en index.html`);
+  } else {
+    console.log(`✅  ${constName} actualizado en index.html (${Object.keys(valueObj).length} entradas)`);
+  }
+  return updated;
 }
+
+html = patchConst(html, 'COACH_PHONES', sortedPhones);
+html = patchConst(html, 'COACH_STATUS', sortedStatuses);
+
+writeFileSync(htmlPath, html, 'utf8');
