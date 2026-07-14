@@ -1,4 +1,5 @@
 credentials.json
+.env
 *.pyc
 __pycache__/
 .DS_Store
@@ -8,3 +9,25 @@ data/sessions.csv
 .claude/
 .playwright-mcp/
 dashboard-*.png
+apps-script-tab.png
+att-colors.png
+coaches-tab.png
+comments-fixed.png
+comments-issue.png
+comments-zoom.png
+compact-top.png
+extensions-menu.png
+gas-editor.png
+gas-selected.png
+live-coaches-view.png
+new-compact-view.png
+restored-dashboard.png
+select-2sessions.png
+sessions-tab-expanded.png
+sheet-open.png
+term-coaches-view.png
+vps-academy-expanded.png
+vps-att-colors-fixed.png
+vps-live.png
+data/teams_raw.csv
+data/sessions old.csv

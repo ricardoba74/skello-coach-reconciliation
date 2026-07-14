@@ -277,6 +277,21 @@
     .total-cell.mid  { background: #fff8e1; color: #e65100; }
     .total-cell.bad  { background: var(--red-bg); color: var(--red); }
 
+    /* ── STATUS BADGE ── */
+    .status-badge {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      vertical-align: middle;
+      margin-right: 6px;
+      text-transform: uppercase;
+    }
+    .status-badge.active { background: #2e7d32; color: #fff; }
+    .status-badge.former { background: #c62828; color: #fff; }
+
     /* ── COMMENTS ── */
     .comment-col { min-width: 200px; padding: 6px 10px !important; }
     .comment-cell {
@@ -315,6 +330,8 @@
     tbody tr.sess td.coach-cell { font-size: 12px; min-width: 150px; padding: 6px 10px !important; }
     tbody tr.sess td.name { vertical-align: top; padding-top: 10px !important; }
     td.comment-col { vertical-align: top !important; }
+    .coach-comment-row td { padding: 4px 12px 6px !important; background: #f5f7fa; border-bottom: 1px solid #e0e0e0; }
+    .coach-comment-row .comment-cell { min-height: 36px; }
 
     /* ── STICKY HEADER (freeze date row on vertical scroll) ── */
     thead {
@@ -391,6 +408,85 @@
       max-width: 300px;
       word-break: break-word;
     }
+
+    /* ── EXECUTIVE SUMMARY ── */
+    #exec-summary {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+    }
+    .exec-header {
+      padding: 10px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid transparent;
+    }
+    .exec-header:hover { background: #f8f9fa; }
+    .exec-header.open { border-bottom-color: var(--border); }
+    .exec-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+    .exec-toggle { font-size: 11px; color: var(--muted); }
+    .exec-body {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 16px 32px;
+    }
+    .exec-body.hidden { display: none; }
+    .exec-card {
+      padding: 0 20px 0 0;
+      margin: 0 20px 0 0;
+      border-right: 1px solid var(--border);
+    }
+    .exec-card:last-child { border-right: none; margin-right: 0; padding-right: 0; }
+    .exec-card-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid currentColor;
+    }
+    .exec-card-title.ok    { color: var(--green); }
+    .exec-card-title.warn  { color: var(--red); }
+    .exec-card-title.navy  { color: var(--navy); }
+    .exec-card-title.amber { color: var(--amber); }
+    .exec-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      min-width: 0;
+    }
+    .exec-item-info { flex: 1; min-width: 0; }
+    .exec-item-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .exec-item-sub {
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .exec-pct {
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      padding: 2px 7px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .exec-pct.ok   { background: var(--green-bg); color: var(--green); }
+    .exec-pct.mid  { background: #fff8e1; color: #e65100; }
+    .exec-pct.bad  { background: var(--red-bg); color: var(--red); }
+    .exec-empty { font-size: 12px; color: var(--muted); font-style: italic; }
   </style>
 </head>
 <body>
@@ -421,6 +517,8 @@
   <div class="stat rate">  <div class="val" id="s-rate">—</div> <div class="lbl">Match rate</div></div>
 </div>
 
+<div id="exec-summary"></div>
+
 <!-- ── SESSIONS VIEW ── -->
 <div id="sessions-view">
   <div class="container">
@@ -443,8 +541,16 @@
 // ── ATTENDANCE TRACKING STARTED May 4 — ignore earlier dates ────────────────
 const ATT_START = '2026-05-04';
 
+let coachSort = { col: null, dir: 1 };
+function sortCoachesBy(col) {
+  coachSort.dir = (coachSort.col === col) ? coachSort.dir * -1 : (col === 'name' ? 1 : -1);
+  coachSort.col = col;
+  if (window._termData) renderCoaches(window._termData);
+}
+
 // ── WHATSAPP COACH PHONES (coach_id → number with country code) ──────────────
-const COACH_PHONES = {"1":"6596484912","3":"6594897114","6":"6596937771","8":"6598557748","10":"6593274832","18":"6583232770","21":"6593694520","28":"6590703147","33":"6597821164","39":"6594884525","42":"6596211063","43":"6597619795","44":"6598668280","46":"6593646362","49":"6585111717","53":"6584527031","59":"6594740605","75":"6590679241","79":"6588947762","80":"6588152513","84":"6581866422","86":"6582661000","94":"6590213703","114":"6594768360","121":"6591002595","124":"6584682241","129":"6593679434","133":"6586618343","136":"6591002447","138":"6593845054","144":"6596780098","147":"6597824655","148":"6590874815","149":"6597278043","150":"6594893918","152":"6592360694","155":"6584366091","158":"6580801014","160":"6591760452","161":"6596163871","163":"6587232753","164":"6596995926","165":"6598966943","169":"6582838792","170":"6583993104","171":"6587556650","172":"6583224255","174":"6597276438","175":"6592381624","177":"6594518891","179":"447888161216","180":"6592722641","181":"6593922072","182":"6596691746","183":"6593756083","184":"6585692749","185":"6594308470","186":"6588947812","187":"6596844430","188":"6587959455","189":"6580784200","190":"6587500771","191":"6581687963","192":"6585332877","193":"6591011325","194":"61487136974","195":"6591011325","196":"6584045511","197":"6582680872","198":"6585690560","199":"6587336315","200":"34628638528","201":"6587812351","300":"34689027360"};
+const COACH_PHONES = {"1":"6596484912","3":"6594897114","6":"6596937771","8":"6598557748","10":"6593274832","17":"6584826495","18":"6583232770","21":"6593694520","25":"6596314036","26":"6594369935","28":"6590703147","33":"6597821164","36":"6588039043","38":"6582018343","39":"6594884525","42":"6596211063","43":"6597619795","44":"6598668280","46":"6593646362","49":"6585111717","51":"6581751971","53":"6584527031","59":"6594740605","62":"6584082841","68":"6598384591","70":"6587841507","71":"6592353977","72":"6590665707","75":"6590679241","77":"6592346017","79":"6588947762","80":"6588152513","82":"6588922904","83":"6597649917","84":"6581866422","86":"6582661000","88":"6598004497","89":"6592295947","94":"6590213703","101":"6591992438","110":"6598503169","112":"6597821164","114":"6594768360","117":"6580325190","119":"6592725915","121":"6591002595","124":"6584682241","125":"6589521158","128":"6597545004","129":"6593679434","130":"6588539850","131":"6598569052","132":"6591019393","133":"6586618343","135":"6585893735","136":"6591002447","137":"6581835703","138":"6593845054","139":"6597301786","140":"6588131995","141":"96894691179","142":"6587486526","143":"6587849385","144":"6596780098","145":"6581987948","146":"6593385818","147":"6597824655","148":"6590874815","149":"6597278043","150":"6594893918","152":"6592360694","155":"6584366091","156":"6588241250","157":"6596239853","158":"6580801014","159":"6590525216","160":"6591760452","161":"6596163871","162":"447831362043","163":"6587232753","164":"6596995926","165":"6598966943","166":"6593665261","167":"6589216542","168":"6591542119","169":"6582838792","170":"6583993104","171":"6587556650","172":"6583224255","173":"6586601637","174":"6597276438","175":"6592381624","176":"6597676751","177":"6594518891","178":"6598710736","179":"447888161216","180":"6592722641","181":"6593922072","182":"6596691746","183":"6593756083","184":"6585692749","185":"6594308470","186":"6588947812","187":"6596844430","188":"6587959455","189":"6580784200","190":"6587500771","191":"6581687963","192":"6585332877","193":"6586942023","194":"61487136974","195":"6591011325","196":"6584045511","197":"6582680872","198":"6585690560","199":"6587336315","200":"34689027360","201":"6587812351","300":"34628638528"};
+const COACH_STATUS = {"1":"A","3":"A","6":"A","8":"A","10":"A","17":"F","18":"A","21":"A","25":"F","26":"F","28":"A","33":"A","36":"F","38":"F","39":"A","42":"A","43":"A","44":"A","46":"A","49":"A","51":"F","53":"A","59":"A","62":"F","68":"F","70":"F","71":"F","72":"F","75":"A","77":"F","79":"A","80":"A","82":"F","83":"F","84":"A","86":"A","88":"F","89":"F","94":"A","101":"F","110":"F","112":"F","114":"A","117":"F","119":"F","121":"A","124":"A","125":"F","128":"F","129":"A","130":"F","131":"F","132":"F","133":"A","135":"F","136":"A","137":"F","138":"A","139":"A","140":"F","141":"F","142":"F","143":"F","144":"A","145":"A","146":"F","147":"A","148":"A","149":"A","150":"A","152":"A","153":"F","154":"F","155":"A","156":"A","157":"F","158":"A","159":"A","160":"A","161":"A","162":"F","163":"A","164":"A","165":"A","166":"A","167":"F","168":"F","169":"A","170":"A","171":"A","172":"A","173":"A","174":"A","175":"A","176":"F","177":"A","178":"F","179":"A","180":"A","181":"F","182":"A","183":"A","184":"A","185":"A","186":"A","187":"A","188":"A","189":"A","190":"A","191":"A","192":"A","193":"A","194":"A","195":"A","196":"A","197":"A","198":"A","199":"A","200":"A","201":"A","300":"A"};
 
 const WA_MSG = encodeURIComponent(
 `Hi, this is *Jordi*.
@@ -670,6 +776,19 @@ function renderTerm(data) {
           ? `<strong>${coach.coach_name}</strong>&nbsp;<span class="ref-badge">REF</span>`
           : coach.coach_name;
 
+        const sessStatusKey   = COACH_STATUS[coach.coach_id];
+        const sessStatusBadge = sessStatusKey
+          ? `<span class="status-badge ${sessStatusKey === 'A' ? 'active' : 'former'}">${sessStatusKey}</span>`
+          : '';
+
+        const sessPhone = COACH_PHONES[coach.coach_id];
+        const sessWaBtn = sessPhone
+          ? `<a class="wa-btn" href="https://wa.me/${sessPhone}?text=${WA_MSG}" target="_blank" onclick="event.stopPropagation()">
+               <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L0 24l6.335-1.51A11.933 11.933 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.369l-.36-.214-3.724.888.923-3.638-.235-.374A9.818 9.818 0 1112 21.818z"/></svg>
+               WhatsApp
+             </a>`
+          : '';
+
         const byDate    = coach.by_date     || [];
         const attByDate = coach.att_by_date || [];
         const dateCells = dates.map((d, di) => {
@@ -710,7 +829,7 @@ function renderTerm(data) {
           row += `<td class="name" rowspan="${nCoaches}" style="position:sticky;left:0;background:var(--white)">${sess.team}</td>`;
         }
 
-        row += `<td class="coach-cell" style="position:sticky;left:220px;background:var(--white)">${coachLabel}</td>`;
+        row += `<td class="coach-cell" style="position:sticky;left:220px;background:var(--white)">${coachLabel}${sessStatusBadge}${sessWaBtn}</td>`;
         row += `<td class="num total-cell ${rateClass}">${coach.count}/${totSess}<small>${rate}%</small></td>`;
         row += attCell;
 
@@ -747,6 +866,33 @@ function renderCoaches(data) {
   const dates   = data.dates;
   const coaches = data.coaches;
 
+  // Pre-compute stats for sorting
+  const _stats = new Map();
+  coaches.forEach(coach => {
+    const totalCount = coach.sessions.reduce((s,x) => s+(x.count||0), 0);
+    const totalSess  = coach.sessions.reduce((s,x) => s+(x.total_sessions||0), 0);
+    const consPct = totalSess > 0 ? Math.round(100*totalCount/totalSess) : 0;
+    let attCount=0, attTotal=0;
+    coach.sessions.forEach(sess => {
+      dates.forEach((d,di) => {
+        if (d < ATT_START || (sess.by_date||[])[di] !== true) return;
+        attTotal++;
+        if ((sess.att_by_date||[])[di] === true) attCount++;
+      });
+    });
+    const attPct = attTotal > 0 ? Math.round(100*attCount/attTotal) : 0;
+    _stats.set(coach.coach_id, { consPct, attPct });
+  });
+
+  const sortedCoaches = [...coaches].sort((a, b) => {
+    if (!coachSort.col) return a.coach_name.localeCompare(b.coach_name);
+    const sa = _stats.get(a.coach_id), sb = _stats.get(b.coach_id);
+    if (coachSort.col === 'name') return coachSort.dir * a.coach_name.localeCompare(b.coach_name);
+    if (coachSort.col === 'cons') return coachSort.dir * (sa.consPct - sb.consPct);
+    if (coachSort.col === 'att')  return coachSort.dir * (sa.attPct  - sb.attPct);
+    return 0;
+  });
+
   const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAY_ABBR   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
@@ -763,19 +909,28 @@ function renderCoaches(data) {
 
   const TOTAL_COLS = 1 + dates.length + 2;
 
+  const sortInd = col => {
+    if (coachSort.col !== col) return '<span style="opacity:.35;font-size:9px;margin-left:3px">⇅</span>';
+    return coachSort.dir === 1
+      ? '<span style="font-size:10px;margin-left:3px">▲</span>'
+      : '<span style="font-size:10px;margin-left:3px">▼</span>';
+  };
+  const thStyle = 'cursor:pointer;user-select:none';
+  const thStyle2 = thStyle + ';min-width:68px';
+
   let html = `<table class="coaches-table">
     <thead>
       <tr>
-        <th class="left" rowspan="2" style="min-width:220px;position:sticky;left:0;z-index:2;background:var(--slate)">Coach / Team</th>
-        <th rowspan="2" style="min-width:68px">Consistencia</th>
-        <th rowspan="2" style="min-width:68px">Asistencia</th>
+        <th class="left" rowspan="2" style="min-width:220px;position:sticky;left:0;z-index:2;background:var(--slate);${thStyle}" onclick="sortCoachesBy('name')">Coach / Team${sortInd('name')}</th>
+        <th rowspan="2" style="${thStyle2}" onclick="sortCoachesBy('cons')">Consistencia${sortInd('cons')}</th>
+        <th rowspan="2" style="${thStyle2}" onclick="sortCoachesBy('att')">Asistencia${sortInd('att')}</th>
         ${dtHdrs1}
       </tr>
       <tr class="sub"><th></th><th></th>${dtHdrs2}</tr>
     </thead>
     <tbody>`;
 
-  coaches.forEach((coach, ci) => {
+  sortedCoaches.forEach((coach, ci) => {
     const cid   = `cc_${ci}`;
     const nSess = coach.sessions.length;
 
@@ -797,6 +952,11 @@ function renderCoaches(data) {
     const attPct   = coachAttTotal > 0 ? Math.round(100 * coachAttCount / coachAttTotal) : 0;
     const attClass = attPct >= 80 ? 'ok' : (coachAttCount === 0 && coachAttTotal > 0) ? 'bad' : 'mid';
 
+    const statusKey = COACH_STATUS[coach.coach_id];
+    const statusBadge = statusKey
+      ? `<span class="status-badge ${statusKey === 'A' ? 'active' : 'former'}">${statusKey === 'A' ? 'Active' : 'Former'}</span>`
+      : '';
+
     const phone   = COACH_PHONES[coach.coach_id];
     const waBtn   = phone
       ? `<a class="wa-btn" href="https://wa.me/${phone}?text=${WA_MSG}" target="_blank" onclick="event.stopPropagation()">
@@ -812,7 +972,16 @@ function renderCoaches(data) {
         <span class="cat-badge gray">${nSess} team${nSess !== 1 ? 's' : ''}</span>
         <span class="cat-badge ${consClass}">Consist. ${consPct}%</span>
         <span class="cat-badge ${attClass}">Asist. ${attPct}%</span>
-        ${waBtn}
+        ${statusBadge}${phone ? `<span style="font-size:11px;color:#546e7a;margin-right:4px;vertical-align:middle">+${phone}</span>` : ''}${waBtn}
+      </td>
+    </tr>
+    <tr class="coach-comment-row">
+      <td colspan="${TOTAL_COLS}">
+        <textarea class="comment-cell" data-team="coach_${coach.coach_id}"
+          placeholder="Add a comment…"
+          onclick="event.stopPropagation()"
+          onblur="saveComment(this.dataset.team, this.value)"
+          rows="2"></textarea>
       </td>
     </tr>`;
 
@@ -871,6 +1040,99 @@ function renderCoaches(data) {
 
   html += '</tbody></table>';
   wrap.innerHTML = html;
+  fillCommentCells();
+}
+
+// ── EXECUTIVE SUMMARY ────────────────────────────────────────────────────────
+function toggleExec() {
+  const body   = document.getElementById('exec-body');
+  const toggle = document.getElementById('exec-toggle');
+  const header = document.getElementById('exec-header');
+  const isHidden = body.classList.toggle('hidden');
+  header.classList.toggle('open', !isHidden);
+  toggle.textContent = isHidden ? 'mostrar ▼' : 'colapsar ▲';
+}
+
+function renderExecSummary(data) {
+  const el = document.getElementById('exec-summary');
+  if (!data || !el) return;
+  const dates = data.dates || [];
+
+  // Session stats: ref coach consistency + att
+  const sessStats = [];
+  for (const cat of (data.categories || [])) {
+    for (const sess of (cat.sessions || [])) {
+      const total = sess.total_sessions || 0;
+      if (total < 3) continue;
+      const ref = (sess.coaches || []).find(c => c.is_ref);
+      if (!ref) continue;
+      const consPct = Math.round(100 * (ref.count || 0) / total);
+      let attCount = 0, attTotal = 0;
+      if (Array.isArray(ref.att_by_date)) {
+        dates.forEach((d, di) => {
+          if (d < ATT_START || (ref.by_date || [])[di] !== true) return;
+          attTotal++;
+          if (ref.att_by_date[di] === true) attCount++;
+        });
+      }
+      sessStats.push({ team: sess.team, refName: ref.coach_name, total, count: ref.count || 0, consPct, attCount, attTotal });
+    }
+  }
+
+  // Coach stats: overall consistency + att
+  const coachStats = [];
+  for (const coach of (data.coaches || [])) {
+    const totalCount = coach.sessions.reduce((s, x) => s + (x.count || 0), 0);
+    const totalSess  = coach.sessions.reduce((s, x) => s + (x.total_sessions || 0), 0);
+    if (totalSess < 3) continue;
+    const consPct = Math.round(100 * totalCount / totalSess);
+    let attCount = 0, attTotal = 0;
+    for (const sess of coach.sessions) {
+      dates.forEach((d, di) => {
+        if (d < ATT_START || (sess.by_date || [])[di] !== true) return;
+        attTotal++;
+        if ((sess.att_by_date || [])[di] === true) attCount++;
+      });
+    }
+    coachStats.push({ name: coach.coach_name, nTeams: coach.sessions.length, totalSess, consPct, attCount, attTotal, attPct: attTotal > 0 ? Math.round(100 * attCount / attTotal) : null });
+  }
+
+  const topSess    = [...sessStats].sort((a,b) => b.consPct - a.consPct).slice(0, 6);
+  const lowSess    = [...sessStats].sort((a,b) => a.consPct - b.consPct).slice(0, 6);
+  const topCoaches = [...coachStats].sort((a,b) => b.consPct - a.consPct).slice(0, 6);
+  const lowAtt     = [...coachStats].filter(c => c.attTotal >= 3 && c.attPct !== null).sort((a,b) => a.attPct - b.attPct).slice(0, 6);
+
+  const shortTeam = n => n.replace(/^ACADEMY\s+/i,'').replace(/^SELECT\s+/i,'').replace(/^GK\s+/i,'');
+  const pctCls = p => p >= 80 ? 'ok' : p >= 50 ? 'mid' : 'bad';
+  const mkItem = (name, sub, pct) =>
+    `<div class="exec-item">
+      <div class="exec-item-info">
+        <div class="exec-item-name" title="${name}">${name}</div>
+        <div class="exec-item-sub">${sub}</div>
+      </div>
+      <span class="exec-pct ${pctCls(pct)}">${pct}%</span>
+    </div>`;
+  const empty = msg => `<div class="exec-empty">${msg}</div>`;
+
+  const cards = [
+    { cls:'ok',    title:'▲ Sesiones — Mejor Consistencia',
+      body: topSess.length ? topSess.map(s => mkItem(shortTeam(s.team), `${s.refName} · ${s.count}/${s.total} sesiones`, s.consPct)).join('') : empty('Sin datos') },
+    { cls:'warn',  title:'▼ Sesiones — Peor Consistencia',
+      body: lowSess.length ? lowSess.map(s => mkItem(shortTeam(s.team), `${s.refName} · ${s.count}/${s.total} sesiones`, s.consPct)).join('') : empty('Todas OK') },
+    { cls:'navy',  title:'▲ Coaches — Mejor Consistencia',
+      body: topCoaches.length ? topCoaches.map(c => mkItem(c.name, `${c.nTeams} equipo${c.nTeams!==1?'s':''} · ${c.totalSess} sesiones`, c.consPct)).join('') : empty('Sin datos') },
+    { cls:'amber', title:'▼ Coaches — Peor Asistencia',
+      body: lowAtt.length ? lowAtt.map(c => mkItem(c.name, `${c.attCount}/${c.attTotal} desde May 4`, c.attPct)).join('') : empty('Sin datos') },
+  ];
+
+  el.innerHTML = `
+    <div class="exec-header open" id="exec-header" onclick="toggleExec()">
+      <span class="exec-title">Resumen Ejecutivo</span>
+      <span class="exec-toggle" id="exec-toggle">colapsar ▲</span>
+    </div>
+    <div class="exec-body" id="exec-body">
+      ${cards.map(c => `<div class="exec-card"><div class="exec-card-title ${c.cls}">${c.title}</div>${c.body}</div>`).join('')}
+    </div>`;
 }
 
 // ── BOOT ─────────────────────────────────────────────────────────────────────
@@ -880,6 +1142,7 @@ Promise.all([loadTermData(), loadComments()])
       window._termData = termData;
       renderTerm(termData);
       renderCoaches(termData);
+      renderExecSummary(termData);
     }
   })
   .catch(err => {

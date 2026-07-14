@@ -299,6 +299,25 @@ Token: `bff40f954954bf2c8fafa4cc1dbb7fe06b14de8afb9c754e19bb9bdcf3b970b5`
 
 ---
 
+## Resumen Ejecutivo (panel dinámico)
+
+Panel colapsable en `index.html`, renderizado por `renderExecSummary(data)`, ubicado entre el strip de métricas globales y la tabla de sesiones (`<div id="exec-summary"></div>`).
+
+**4 tarjetas calculadas al vuelo desde `term_output.json`:**
+
+| Tarjeta | Criterio | Filtro mínimo |
+|---------|----------|---------------|
+| ▲ Sesiones — Mejor Consistencia | Top 6 sesiones por % del coach REF, desc | ≥ 3 sesiones en el term |
+| ▼ Sesiones — Peor Consistencia | Top 6 sesiones por % del coach REF, asc | ≥ 3 sesiones en el term |
+| ▲ Coaches — Mejor Consistencia | Top 6 coaches por % global, desc | ≥ 3 sesiones en el term |
+| ▼ Coaches — Peor Asistencia | Top 6 coaches por att % desde ATT_START, asc | ≥ 3 sesiones att-elegibles |
+
+- Badges verdes/naranja/rojo: ≥80% ok · 50–79% mid · <50% bad
+- Los nombres de sesión se acortan quitando el prefijo `ACADEMY /SELECT /GK `
+- Toggle con `toggleExec()`: colapsa/expande el body `#exec-body`
+
+---
+
 ## GitHub
 
 - **Repo**: https://github.com/ricardoba74/skello-coach-reconciliation
