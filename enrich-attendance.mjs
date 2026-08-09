@@ -13,10 +13,10 @@
  *
  * For Academy/GK sessions: dates are derived from the day code in the team name
  *   (e.g. "MO1800" → every Monday of the term).
- * For Select sessions: actual dates and per-coach presence are read from
- *   data/sessions_cache_<id>.json (bridge file written by process.py from the
- *   same source — CSV or Sheets API), which has both training days per
- *   week instead of only one.
+ * For Select and Sports Dev sessions (no day code in the team name): actual
+ *   dates and per-coach presence are read from data/sessions_cache_<id>.json
+ *   (bridge file written by process.py from the same source — CSV or Sheets
+ *   API), which has both training days per week instead of only one.
  *
  * Usage: node enrich-attendance.mjs
  */
@@ -46,8 +46,6 @@ if (!TOKEN) {
   console.warn('⚠  BARCA_ATTENDANCE_TOKEN no configurado (.env) — se omite asistencia de jugadores.');
 }
 
-const norm = s => (s || '').toLowerCase().replace(/\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
-
 function utcDayOfWeek(dateStr) {
   return new Date(dateStr + 'T00:00:00Z').getUTCDay(); // 0=Sun
 }
@@ -75,7 +73,9 @@ async function enrichTerm(termEntry) {
     const cacheRows = JSON.parse(readFileSync(SESSIONS_CACHE, 'utf8'));
     let selectRows = 0;
     for (const row of cacheRows) {
-      if (row.activity !== 'Select') continue;
+      // Sports Dev teams have no day-code suffix either, so they go through
+      // the same "actual dates from cache" path as Select below.
+      if (row.activity !== 'Select' && row.activity !== 'Sports Dev') continue;
       const dateStr = row.date;
       if (!dateStr || dateStr < T_FROM || dateStr > T_TO) continue;
       if (utcDayOfWeek(dateStr) === 0) continue; // exclude Sundays (matches process.py filter)
@@ -101,28 +101,6 @@ async function enrichTerm(termEntry) {
   } catch (e) {
     console.warn(`  ⚠  Could not read ${SESSIONS_CACHE}: ${e.message}`);
     console.warn('     Select sessions will fall back to Saturday-only dates.');
-  }
-
-  // ── Build name → coach_id lookup from JSON ───────────────────────────────────
-  const nameToId = new Map();
-  for (const cat of data.categories) {
-    for (const sess of cat.sessions) {
-      for (const coach of sess.coaches || []) {
-        if (coach.coach_id && coach.coach_name) {
-          nameToId.set(norm(coach.coach_name), coach.coach_id);
-        }
-      }
-    }
-  }
-  console.log(`  Coach name→ID map: ${nameToId.size} entries`);
-
-  function resolveCoachId(apiName) {
-    const n = norm(apiName);
-    if (nameToId.has(n)) return nameToId.get(n);
-    for (const [known, id] of nameToId) {
-      if (known.includes(n) || n.includes(known)) return id;
-    }
-    return null;
   }
 
   // ── Day-of-week offset from session name (Academy/GK only) ──────────────────
@@ -201,9 +179,12 @@ async function enrichTerm(termEntry) {
   console.log(`  Weeks with sessions: ${[...weeksWithSessions].sort((a,b)=>a-b).map(i=>`S${i+1}`).join(', ')}`);
 
   // ── Fetch attendance from API, day by day ────────────────────────────────────
-  const attLookup       = new Map(); // coach_id → Set<week_idx>
-  const attLookupByDate = new Map(); // coach_id → Set<dateStr>
-  const unknownNames    = new Set();
+  // Keyed by session TEAM (not by the coach name in the API log): the coach who
+  // submits player attendance for a team is frequently someone else (an admin
+  // entering it in bulk), so the API's `coach` field cannot be trusted to
+  // identify which Skello-assigned coach ran the session.
+  const attByTeamWeek = new Map(); // team (upper) → Set<week_idx>
+  const attByTeamDate = new Map(); // team (upper) → Set<dateStr>
 
   if (TOKEN) {
     for (const wIdx of [...weeksWithSessions].sort((a, b) => a - b)) {
@@ -235,16 +216,13 @@ async function enrichTerm(termEntry) {
 
           for (const s of sessions) {
             const players = s.logs || s.players || [];
-            if (!s.coach || !players.length) continue;
-
-            const cid = resolveCoachId(s.coach);
-            if (cid) {
-              if (!attLookup.has(cid))       attLookup.set(cid, new Set());
-              attLookup.get(cid).add(wIdx);
-              if (!attLookupByDate.has(cid)) attLookupByDate.set(cid, new Set());
-              attLookupByDate.get(cid).add(dateStr);
-            } else {
-              unknownNames.add(s.coach);
+            for (const p of players) {
+              const teamKey = (p.sessionTeam || p.team || '').trim().toUpperCase();
+              if (!teamKey) continue;
+              if (!attByTeamWeek.has(teamKey)) attByTeamWeek.set(teamKey, new Set());
+              attByTeamWeek.get(teamKey).add(wIdx);
+              if (!attByTeamDate.has(teamKey)) attByTeamDate.set(teamKey, new Set());
+              attByTeamDate.get(teamKey).add(dateStr);
             }
           }
 
@@ -257,10 +235,16 @@ async function enrichTerm(termEntry) {
     }
   }
 
-  console.log(`  Attendance found: ${attLookup.size} coaches with player submissions`);
-  if (unknownNames.size) {
-    console.log(`  Unmatched coach names (${unknownNames.size}):`);
-    for (const n of [...unknownNames].sort()) console.log(`    "${n}"`);
+  console.log(`  Attendance found: ${attByTeamDate.size} teams with player submissions`);
+
+  const knownTeams   = new Set();
+  for (const cat of data.categories) {
+    for (const sess of cat.sessions) knownTeams.add(sess.team.trim().toUpperCase());
+  }
+  const unmatchedTeams = [...attByTeamDate.keys()].filter(t => !knownTeams.has(t));
+  if (unmatchedTeams.length) {
+    console.log(`  Teams with attendance but no matching dashboard session (${unmatchedTeams.length}):`);
+    for (const t of unmatchedTeams.sort()) console.log(`    "${t}"`);
   }
 
   // ── Enrich each coach entry ───────────────────────────────────────────────────
@@ -269,18 +253,17 @@ async function enrichTerm(termEntry) {
     for (const sess of cat.sessions) {
       const dayOffset    = parseDayOffset(sess.team);        // null for Select
       const isSelect     = dayOffset === null;
-      const selectKey    = sess.team.toUpperCase();
-      const teamPresence = isSelect ? (selectPresence.get(selectKey) || null) : null;
+      const teamKey      = sess.team.trim().toUpperCase();
+      const teamPresence = isSelect ? (selectPresence.get(teamKey) || null) : null;
+      const teamWeeks    = attByTeamWeek.get(teamKey) || new Set();
+      const teamDates    = attByTeamDate.get(teamKey) || new Set();
 
       for (const coach of sess.coaches || []) {
-        const coachWeeks = attLookup.get(coach.coach_id)       || new Set();
-        const coachDates = attLookupByDate.get(coach.coach_id) || new Set();
-
         // ── att_by_week (week-level — used by Sessions tab) ──────────────────
         const attByWeek = (coach.by_week || []).map((val, i) => {
           if (val === null || val === undefined) return null;
           if (!val) return null;
-          return coachWeeks.has(i);
+          return teamWeeks.has(i);
         });
         coach.att_by_week = attByWeek;
         coach.att_count   = attByWeek.filter(v => v === true).length;
@@ -298,7 +281,7 @@ async function enrichTerm(termEntry) {
             } else {
               const coachPresent = teamPresence.get(dateStr).has(coach.coach_id);
               by_date.push(coachPresent);
-              att_by_date.push(coachPresent ? coachDates.has(dateStr) : null);
+              att_by_date.push(coachPresent ? teamDates.has(dateStr) : null);
             }
           }
         } else {
@@ -323,7 +306,7 @@ async function enrichTerm(termEntry) {
             }
 
             by_date.push(weekVal);
-            att_by_date.push(weekVal ? coachDates.has(dateStr) : null);
+            att_by_date.push(weekVal ? teamDates.has(dateStr) : null);
           }
         }
 

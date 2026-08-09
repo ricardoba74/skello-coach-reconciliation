@@ -23,18 +23,21 @@ Compara las asignaciones teóricas de entrenadores (fichero de equipos) contra l
 |---------|-----------|
 | `process.py` | Paso 1 del pipeline — lee Google Sheets (API) o CSVs (`--csv`), reconcilia **cada term del registro `TERMS`**, genera `data/term_output_<id>.json`, `data/sessions_cache_<id>.json` y `data/terms_index.json` |
 | `enrich-attendance.mjs` | Paso 2 del pipeline — lee `data/terms_index.json` y enriquece cada `term_output_<id>.json` con `dates[]`, `by_date[]`, `att_by_date[]` |
-| `fetch-coaches.mjs` | Paso 0 del pipeline — sincroniza teléfonos de coaches desde Airtable, escribe `data/coaches.csv` y parchea `COACH_PHONES` en `index.html` |
+| `fetch-coaches.mjs` | Paso 0 del pipeline — sincroniza teléfonos de coaches desde Airtable, escribe `data/coaches.csv` y parchea `COACH_PHONES`/`COACH_STATUS` en `index.html`. **También** escribe columnas `NAME SURNAME, STATUS, ID, PHONE, MAIL` (ese orden exacto, no reordenar) en la pestaña "Coaches Air" del Google Sheet "Barça Academy Data Base" (`1-kztBuXshBnBptDWt5pdwWaT-dCUIWEHPHUG5gttbis`) — un proyecto no relacionado con este repo, pero reutiliza este cron diario para no montar infraestructura nueva. Autentica contra Sheets API con `credentials.json` vía un flow JWT-bearer hecho a mano (sin deps npm, usa `crypto` nativo) |
 | `update-dashboard.sh` | Orquesta los 3 pasos anteriores en orden (`fetch-coaches` → `process` → `enrich`). Correr con `--csv` para modo local/dev, sin flags para producción (Sheets API) |
 | `index.html` | Dashboard VPS — selector de **term** (arriba) + **dos pestañas** (Sessions + Coaches), carga `data/terms_index.json` y, perezosamente, el `term_output_<id>.json` del term seleccionado |
 | `comments_script.gs` | Código del Google Apps Script para backend de comentarios |
 | `credentials.json` | Clave de la Service Account de Google (Sheets+Drive API, solo lectura) — **excluido de git**, requerido para `process.py` sin `--csv` |
 | `.env` | `AIRTABLE_API_KEY` + `BARCA_ATTENDANCE_TOKEN` — **excluido de git**, ver `.env.example` |
-| `data/teams.csv` | Solo para modo `--csv` (fallback manual) — export de File 1 pestaña "New info teams" |
+| `data/teams.csv` | Solo para modo `--csv` (fallback manual) — export de la pestaña "Teams" del Sheet "Barça Academy Data Base" |
 | `data/sessions.csv` | Solo para modo `--csv` (fallback manual) — export de File 2 pestaña "Data". **Excluido de git** |
-| `data/sessions_cache_<id>.json` | Fichero puente por term generado por `process.py` (fechas/coach/actividad de sesiones Select, ya filtrado a las fechas de ese term) que consume `enrich-attendance.mjs` |
+| `data/sessions_cache_<id>.json` | Fichero puente por term generado por `process.py` (fechas/coach/actividad de sesiones Select **y Sports Dev**, ya filtrado a las fechas de ese term) que consume `enrich-attendance.mjs` |
 | `data/coaches.csv` | Generado por `fetch-coaches.mjs` desde Airtable — fuente de teléfonos para COACH_PHONES |
 | `data/term_output_<id>.json` | Generado por el pipeline, uno por term (`<id>` = el definido en `TERMS`, ej. `t2_2026`) — **excluido de git** |
 | `data/terms_index.json` | Manifest de terms disponibles `[{id, label, file, from, to}, ...]` — lo consumen `enrich-attendance.mjs` e `index.html`. **Excluido de git** |
+| `inspect-slides-grid.mjs` | Herramienta de desarrollo, uso puntual — vuelca la estructura de las 4 tablas del PowerPoint de planning semanal en `data/slides-grid-map.json`. Solo se re-ejecuta si el PowerPoint cambia de estructura (columnas/filas nuevas) |
+| `sync-teams-to-slides.mjs` | Sincroniza `Teams` (Sheet "Barça Academy Data Base") → PowerPoint de planning semanal. Ver sección "Sync Teams → PowerPoint" más abajo |
+| `data/slides-grid-map.json` | Mapeo objectId de tabla + fila/columna por venue/día/hora del PowerPoint, generado por `inspect-slides-grid.mjs`, committeado a git — es config/infraestructura, no dato |
 
 ---
 
@@ -84,11 +87,13 @@ scp -i ~/.ssh/hostinger_key index.html root@89.116.33.101:/var/www/bacoaches/
 
 | Fichero | URL | Sheet ID |
 |---------|-----|----------|
-| File 1 — Equipos | https://docs.google.com/spreadsheets/d/1COqOZLAQNO437dPZgQpBWsgjreI-FJlbPDfdwHPeDcA/edit?gid=609166241 | `1COqOZLAQNO437dPZgQpBWsgjreI-FJlbPDfdwHPeDcA` |
+| Barça Academy Data Base — Equipos | pestaña "Teams" | `1-kztBuXshBnBptDWt5pdwWaT-dCUIWEHPHUG5gttbis` |
 | File 2 — Sesiones ("KPIs Skello T2 2026") | https://docs.google.com/spreadsheets/d/1wYeFyD9LvyyrvkMz-VoikeB_QAajxKtfUkuUAojDBg8/edit?gid=0 | `1wYeFyD9LvyyrvkMz-VoikeB_QAajxKtfUkuUAojDBg8` |
 
-- File 1 pestaña "New info teams": GID `609166241`
+- Barça Academy Data Base, pestaña "Teams": GID `1522724169`
 - File 2 pestaña "Data": GID `0`
+
+**El pipeline ya no lee la pestaña "New info teams"** (Sheet `1COqOZLAQNO437dPZgQpBWsgjreI-FJlbPDfdwHPeDcA`, GID `609166241`, propósito original de "File 1"). Se migró a la pestaña "Teams" de "Barça Academy Data Base" porque "New info teams" tenía una columna `SKELLO NAME` editada a mano de forma independiente del nombre del equipo, lo que permitía que se desincronizara y "robara" sesiones de otro equipo (ver problema conocido #1, resuelto por esta migración). "New info teams" puede seguir usándose para otros fines de operaciones, pero ya no es fuente de datos del dashboard. La misma pestaña "Teams" ya la usaban `fetch-coaches.mjs` (vía "Coaches Air") y `sync-teams-to-slides.mjs`.
 
 **⚠️ Se crea un Google Sheet nuevo por term** (el de Term 1 era `1uGuXupAHufEPX1BnmZmY_r3PbGnHlpVot8i6a6Y2g_g` — ya no tiene datos recientes). Al cambiar de term, actualizar `SESSIONS_SHEET_ID` en `process.py` y compartir el nuevo Sheet con la service account (`coach-reconciliation-reader@skello-coach-reconciliation.iam.gserviceaccount.com`, permiso Viewer) — si no, el pipeline sigue leyendo el Sheet del term anterior sin avisar.
 
@@ -96,48 +101,59 @@ scp -i ~/.ssh/hostinger_key index.html root@89.116.33.101:/var/www/bacoaches/
 
 ## Columnas relevantes
 
-### File 1 — Equipos (`data/teams.csv`)
+### Equipos — pestaña "Teams" (`data/teams.csv`)
 
-| Índice Python | Columna | Contenido |
-|--------------|---------|-----------|
-| 3  | D  | Nombre completo del equipo. Academy/GK incluyen sufijo de horario: `ACADEMY Nexus 2015-2017 MO1800` |
-| 4  | E  | Nombre Skello — coincide con col H de sesiones. Ej: `Academy Nexus 2015-2017`. **Vacío para Select.** |
-| 11 | L  | Tipo: `Academy` / `Select` / `GK` |
-| 27 | AB | ID del entrenador asignado (numérico; puede ser `TBC` o `#N/A`) |
-| 28 | AC | Nombre del entrenador 2026 |
-| 29 | AD | Teléfono Coach 1 2026 (para botón WhatsApp) |
-| 32 | AG | Teléfono Coach 2 2026 |
-| 35 | AJ | Teléfono Coach 3 2026 |
+Columnas leídas por `TEAMS_COL` en `process.py` (por nombre de cabecera, no por posición): `TEAM`, `ENTITY`, `STATUS`, `Coach ID1`, `Coach 1`.
+
+| Columna | Contenido |
+|---------|-----------|
+| `TEAM`  | Nombre completo del equipo. Academy/GK incluyen sufijo de horario: `ACADEMY Nexus 2015-2017 MO1800` |
+| `ENTITY` | Filtrado a `"BARÇA ACADEMY"` — la pestaña también tiene filas de `TPUFC` (otro club) que se descartan |
+| `STATUS` | Filtrado a `"Active"` — descarta equipos `Inactive`/`Other` |
+| `Coach ID1` | ID del entrenador de referencia (numérico; puede ser `TBC` o vacío) |
+| `Coach 1` | Nombre del entrenador de referencia |
+| `Coach ID2`/`Coach 2` | Coach secundario (ej. portero backup) — **no se usa** como segunda referencia, se trata como cualquier coach sustituto |
+
+**No existen columnas `Type` ni `SKELLO NAME`** — se derivan en `clean_teams()`:
+- `type` = `_derive_type(TEAM)`: prefijo `ACADEMY ` → Academy, `GK ` → GK, cualquier otro caso (incluye `SELECT ...` y `20XX BARÇA SPORTS DEV`) → Select.
+- `skello` = `_derive_skello(TEAM, type)`: para Academy/GK, quita el sufijo de horario final (`\s+(MO|TU|WE|TH|FR|SA)\d{4}$`); para Select/Sports Dev, usa `TEAM` tal cual.
+
+**Teléfonos de coaches** ya no vienen de esta pestaña (no tiene esas columnas) — ver sección "Botón WhatsApp".
 
 ### File 2 — Sesiones (`data/sessions.csv`)
 
 | Índice Python | Columna | Contenido |
 |--------------|---------|-----------|
 | 5  | F  | Fecha `DD/MM/YYYY` |
-| 7  | H  | Nombre de la sesión — coincide con col E de File 1 |
+| 7  | H  | Nombre de la sesión — coincide con el nombre Skello derivado de `TEAM` (pestaña "Teams", ver sección "Equipos" arriba) |
 | 9  | J  | Hora de inicio `HH:MM` |
 | 14 | O  | Full Name — fuente principal para lookup ID→nombre de entrenador |
 | 18 | S  | Status — excluir filas con `No clock in` |
 | 20 | U  | ID del entrenador (numérico) |
-| 23 | X  | Actividad: `Academy` / `Select` / `GK` / `Sports Dev` / ... |
+| 23 | X  | Actividad: `Academy` / `Select` / `GK` / `Sports Dev` / ... — las 4 primeras entran al pipeline (`VALID_ACTIVITIES` en `process.py`), el resto (Field Support, CCA, Coordinator, Camps, Internal League, PE Lesson, International Tournaments) se descarta |
 
 ---
 
 ## Lógica de matching
 
 ### Academy y GK — dos pasos
-1. **Nombre Skello** (col E de File 1) normalizado == nombre de sesión (col H de File 2) normalizado
-2. **Horario** del sufijo de col D (`MO1800` = lunes 18:00) == día de semana de la fecha + hora de inicio
+1. **Nombre Skello** (derivado de `TEAM`, ver arriba) normalizado == nombre de sesión (col H de File 2) normalizado
+2. **Horario** del sufijo de `TEAM` (`MO1800` = lunes 18:00) == día de semana de la fecha + hora de inicio
 
 ### Select — por nombre
-1. Exact match col E vs col H
+1. Exact match `skello` (= `TEAM`) vs col H
 2. Normalizado: quitar prefijo `SELECT `, case-insensitive
 3. Partial: prefijo común más largo
 
+### Sports Dev — mismo matching que Select
+Los equipos "BARÇA SPORTS DEV" se derivan como tipo `Select` (no hay tipo "Sports Dev" real). `find_team()` en `process.py` enruta las sesiones con `activity == "Sports Dev"` por `_match_select()`, que matchea directamente por `skello` (= `TEAM` tal cual, ej. `2014 BARÇA SPORTS DEV SYL`) — funciona porque el nombre de sesión en Skello coincide literalmente con `TEAM`. Aparecen como 4ª categoría en el dashboard.
+
+**Importante**: como `skello` se deriva de `TEAM` (no hay columna de override independiente), el nombre de sesión en Skello y `TEAM` deben coincidir literalmente (tras normalizar). Si Skello registra una sesión con un nombre distinto (rango de años erróneo, orden de palabras distinto, etc.), el equipo se queda sin sesiones matcheadas y esas sesiones caen en `unmatched_sessions` — hay que corregir el nombre en la pestaña "Teams" (o el nombre real en Skello) para que coincidan. Ver problema conocido #5.
+
 ### Comparación de entrenador
-- `ref_coach_id` (col AB File 1) vs `actual_coach_id` (col U File 2)
+- `ref_coach_id` (`Coach ID1`) vs `actual_coach_id` (col U File 2)
 - **Assigned** si coinciden; **Other** si no
-- Si `ref_coach_id` es `TBC` o `#N/A` → siempre cuenta como Other
+- Si `ref_coach_id` es `TBC` o vacío → siempre cuenta como Other
 
 ---
 
@@ -177,7 +193,7 @@ Vista invertida: un bloque por coach (colapsable), sub-filas por sesión. Mismas
 
 ### Orden de sesiones
 
-Dentro de cada categoría (Academy/Select/GK):
+Dentro de cada categoría (Academy/Select/GK/Sports Dev):
 1. **Venue** (Nexus, Perse, SJII, St Pats…)
 2. **Día de la semana**: Mo → Tu → We → Th → Fr → Sa
 3. **Hora** (ascendente)
@@ -234,7 +250,7 @@ TERMS = [
 
 **Ficheros generados por term** (naming `<algo>_<id>.json`, `id` = el de `TERMS`):
 - `data/term_output_<id>.json` — mismo formato que antes (categories/coaches/dates), más `term.att_start` y `term.label`.
-- `data/sessions_cache_<id>.json` — bridge file de sesiones Select para `enrich-attendance.mjs`, ya filtrado a las fechas de ese term.
+- `data/sessions_cache_<id>.json` — bridge file de sesiones Select y Sports Dev (equipos sin sufijo de horario en el nombre) para `enrich-attendance.mjs`, ya filtrado a las fechas de ese term.
 - `data/terms_index.json` — manifest `[{id, label, file, from, to}, ...]` que consumen tanto `enrich-attendance.mjs` como `index.html` para saber qué terms existen.
 
 ---
@@ -249,7 +265,7 @@ TERMS = [
 
 ## Sistema de comentarios
 
-Los comentarios se guardan en la pestaña **"Comments"** del spreadsheet de File 1.
+Los comentarios se guardan en la pestaña **"Comments"** del spreadsheet original de equipos (`1COqOZLAQNO437dPZgQpBWsgjreI-FJlbPDfdwHPeDcA`, el que contenía "New info teams") — no relacionado con la migración a "Teams", que solo afecta a los datos de reconciliación.
 
 - **Web App URL** (hardcodeada en `index.html` como `HARDCODED_GAS_URL`):
   `https://script.google.com/macros/s/AKfycbxgutR_S63QtgwQlajz1CKtdKWlKLbF_21-3fxjXU6jdXC_OUkZ0QB2kwl4hODzRQwXgw/exec`
@@ -264,9 +280,8 @@ Los comentarios se guardan en la pestaña **"Comments"** del spreadsheet de File
 
 Mapa `coach_id → teléfono` embebido como constante `COACH_PHONES` en `index.html`.
 
-**Fuentes de teléfonos (en orden de prioridad):**
-1. `data/coaches.csv` — columna `PHONE` (col 13), columna `ID` (col 1). **Fuente principal y más completa.**
-2. `data/teams.csv` — cols AD/AG/AJ (índices 29, 32, 35). Fuente secundaria.
+**Fuente de teléfonos:**
+`data/coaches.csv` (generado por `fetch-coaches.mjs` desde Airtable) — columna `PHONE` (col 13), columna `ID` (col 1). Es la **única** fuente desde la migración a la pestaña "Teams" (que no tiene columnas de teléfono); antes `data/teams.csv` (cols AD/AG/AJ de "New info teams") era fuente secundaria.
 
 **Proceso para actualizar COACH_PHONES:**
 1. Exportar coaches.csv del sistema de gestión de coaches
@@ -344,13 +359,24 @@ Un fichero `data/term_output_<id>.json` por term (ver `data/terms_index.json` pa
 
 ## Problemas conocidos en los datos
 
-1. **`ACADEMY NEXUS GIRLS 2014-2016`** (35 sesiones sin match): col E tiene `Academy Nexus 2014-2016` sin "Girls". Fix: actualizar col E en Google Sheets.
+1. **[RESUELTO por la migración a "Teams"] `2009 10 BARÇA SPORTS DEV` "robaba" las sesiones de `2011 BARÇA SPORTS DEV`.** En "New info teams", alguien había escrito a mano en la columna `SKELLO NAME` de `2009 10 BARÇA SPORTS DEV` el valor `2010 BARÇA SPORTS DEV` (el nombre con el que Skello registra esas sesiones desde julio 2026), lo que hacía que el match exacto por esa columna le robara a `2011 BARÇA SPORTS DEV` (mismo coach, Alan Martin) sus propias sesiones, dejándolo con 0 sesiones y sin fila en el dashboard. Como "Teams" no tiene una columna `SKELLO NAME` independiente que se pueda desincronizar así (se deriva de `TEAM`), esta clase de bug ya no puede ocurrir. Las sesiones de Skello literalmente llamadas `2010 BARÇA SPORTS DEV` siguen sin tener equipo exacto — aparecen en `unmatched_sessions` en vez de esconderse bajo otro equipo; pendiente decidir si son en realidad del grupo 2011 (mismo coach/horario en Term 2) y renombrarlas en Skello.
 
-2. **`ACADEMY Nexus 2015-2017 SA1630` y `SA1800`**: col AB tiene ID 82 (ZAINATUL AZHAR) pero ese coach nunca aparece en Skello. Los que cubren son HADEY LATIFF (33) y coach 28. Datos incorrectos en Google Sheets.
+2. **`ACADEMY Nexus 2015-2017 SA1630` y `SA1800`**: el coach ID de referencia asignado no aparece nunca en Skello para esos slots. Los que cubren son HADEY LATIFF (33) y coach 28. Datos incorrectos en la pestaña "Teams".
 
 3. **Cada term puede tener su propia Google Sheet de sesiones.** Ya pasó una vez: `process.py` apuntaba a una sheet de sesiones que dejó de recibir datos nuevos al terminar Term 2 (había una sheet nueva, "KPIs Skello T2 2026", que nadie actualizó en el código). Síntoma: el term se corta en una fecha antigua aunque en Skello haya sesiones más recientes. Si esto vuelve a pasar, comprobar en `TERMS` (`process.py`) que `sessions_sheet_id` apunta a la sheet correcta para ese term.
 
-4. **`ID Coach 1` en "New info teams" puede quedar en blanco/`#REF!`** si alguien reestructura esa pestaña (ej. migración a un sistema de "slots" con `ID Slot1_Coach`/`ID Slot2_Coach`/`ID Slot3_Coach`). Si el % de match cae a 0% de golpe sin que cambie nada en el código, comprobar esa columna en vivo antes de asumir que es un bug del pipeline.
+4. **`Coach ID1` en "Teams" puede quedar en blanco** si alguien reestructura esa pestaña. Si el % de match cae a 0% de golpe sin que cambie nada en el código, comprobar esa columna en vivo antes de asumir que es un bug del pipeline.
+
+5. **Discrepancias entre `TEAM` y el nombre real de sesión en Skello** — como `skello` se deriva de `TEAM` (no hay columna de override independiente, ver "Lógica de matching"), cualquier diferencia literal entre ambos deja al equipo sin sesiones matcheadas. Corregidas el 2026-08-09 (se editó `TEAM` en "Teams" para que coincida con Skello):
+   - `ACADEMY St Pats 2015-2017 SA0930` → renombrado a `ACADEMY St Pats 2016-2017 SA0930`.
+   - `GK SJII 2013-2018 MO1800` → renombrado a `GK SJII 2012-2018 MO1800`.
+   - `ACADEMY Nexus 2014-2016 Girls SA1500` → renombrado a `ACADEMY Nexus Girls 2014-2016 SA1500` (Skello pone "Girls" antes del rango de años, no después).
+
+   Si vuelve a aparecer un equipo con 0 sesiones que antes sí las tenía, comprobar primero si el nombre de sesión en Skello coincide literalmente (tras normalizar prefijo/sufijo de horario) con `TEAM` en "Teams".
+
+6. **Equipos con 0 sesiones en el dashboard no siempre son un bug** — la mayoría de equipos ausentes del dashboard respecto a "Teams" son legítimos: equipos aún no empezados, o slots hermanos con mismo nombre base donde uno tiene coach `TBC` o `STATUS = Inactive` (`clean_teams()` filtra a `STATUS == "Active"`). Antes de asumir un problema de matching, comprobar si el equipo tiene sesiones reales en Skello con ese nombre.
+
+   **Caso detectado 2026-08-09**: `SELECT 2017 18 NEON` tiene `STATUS = Inactive` en "Teams" (y sin coach asignado), pero sigue teniendo sesiones reales fichadas en Skello con coach real — esas sesiones caen en `unmatched_sessions` porque el filtro Active lo excluye. No se corrigió automáticamente (cambiar Active/Inactive es una decisión de roster, no un typo de nombre) — pendiente de que alguien confirme si el equipo sigue activo y actualice `STATUS` en "Teams".
 
 ---
 
@@ -370,6 +396,24 @@ Panel colapsable en `index.html`, renderizado por `renderExecSummary(data)`, ubi
 - Badges verdes/naranja/rojo: ≥80% ok · 50–79% mid · <50% bad
 - Los nombres de sesión se acortan quitando el prefijo `ACADEMY /SELECT /GK `
 - Toggle con `toggleExec()`: colapsa/expande el body `#exec-body`
+
+---
+
+## Sync Teams → PowerPoint (planning semanal por venue)
+
+Sincroniza automáticamente la pestaña **Teams** del Google Sheet "Barça Academy Data Base" (`1-kztBuXshBnBptDWt5pdwWaT-dCUIWEHPHUG5gttbis`) hacia un PowerPoint de Google Slides (`1wYL01YWe-tcI-NgbVVITpCH_RbSH7g-Cf8wHi7CgO24`) con una diapositiva-cuadrícula por sede (Nexus=20, St Patricks=22, SJII=24, Perse=26 — 1-indexado) donde se listan los equipos Select/Sports Dev/GK que entrenan cada día/hora. **No es parte de este repo por diseño de proyecto — es una automatización aparte que vive aquí porque reutiliza la infraestructura de auth ya construida.**
+
+- **Cada tabla-cuadrícula es una tabla nativa de Slides** (no cuadros de texto sueltos, pese a que la exportación de texto plano pueda sugerir lo contrario): 8 filas fijas — cabecera de días, horario bloque 1, equipos bloque 1, horario bloque 2, equipos bloque 2, "SATURDAY", horarios de sábado (una sub-columna por franja, no por día), equipos de sábado.
+- **Solo Select, Sports Dev y GK** — los equipos `ACADEMY ...` se excluyen (tienen su propia plantilla). Los **GK van siempre al final de cada celda**, con una línea en blanco de separación, en **amarillo** (el resto en blanco) — ver `resolveDesiredForSegment`/`renderCellWithStyle` en `sync-teams-to-slides.mjs`.
+- **Excepciones de horario incrustadas dentro de una celda** (ej. la mayoría de un bloque a las 19:30 pero 1-2 equipos a las 19:00, con su propia línea de horario dentro de la misma celda) se detectan en `inspect-slides-grid.mjs` (`parseTeamCell`) y se preservan como segmentos `inline` — mismo patrón ya visto al validar Teams contra el planificador T3 SELECT.
+- Los bloques de texto libre "Goalkeeper Training\n<años>" (no son datos de Teams, no representan un equipo real) se descartan por completo, no se preservan.
+- **Escritura**: `deleteText`+`insertText` dirigidos por `{tableObjectId, cellLocation: {rowIndex, columnIndex}}` — nunca `replaceAllText` (reescribiría dos celdas distintas que compartan texto idéntico). Color con `updateTextStyle` + `FIXED_RANGE`.
+- **Pre-flight obligatorio**: antes de escribir, se relee la tabla y se confirma que el `tableObjectId` de cada venue sigue existiendo — si no, aborta sin escribir nada (protección para el cron desatendido).
+- **Auth**: mismo flow JWT-bearer hecho a mano (sin deps npm) que `fetch-coaches.mjs`, pidiendo el scope `https://www.googleapis.com/auth/presentations`. Requiere la API de Slides habilitada en el proyecto GCP del `credentials.json` (`skello-coach-reconciliation`) y el PowerPoint compartido como Editor con esa cuenta de servicio — ambos ya resueltos.
+- **Cron en el VPS**: `0 2,8,14,20 * * * cd /opt/bacoaches-pipeline && node sync-teams-to-slides.mjs --apply` — **4 veces al día**, mismo horario que el resto de crons del VPS (ver más abajo). Independiente de `update-dashboard.sh`.
+- **Regenerar el mapeo**: si el PowerPoint cambia de estructura (columnas/filas nuevas, tabla recreada), volver a correr `node inspect-slides-grid.mjs` y revisar `data/slides-grid-map.json` a mano contra el PowerPoint antes de confiar en él.
+
+**⚠️ Hay otro sistema de automatización totalmente separado en el mismo VPS**, en `/root/Documents/claude/academia-tools/` (dependencias npm propias — `googleapis`, `google-auth-library` — y su propio `reconcile-lib.mjs` de auth), que corre también a las 2,8,14,20h vía `build-all.mjs` y gestiona dashboards de coaches/contabilidad/staff/retención y una comparación Planificador↔New Info Teams (`planificador.mjs`) — **no tiene relación con este repo ni con el PowerPoint de planning**, pero comparte VPS y horario de cron. Verificado sin solapamiento (2026-08-01) antes de añadir el cron de `sync-teams-to-slides.mjs`.
 
 ---
 

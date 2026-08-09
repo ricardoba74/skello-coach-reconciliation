@@ -23,8 +23,8 @@ except ImportError:
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
 
-TEAMS_SHEET_ID    = "1COqOZLAQNO437dPZgQpBWsgjreI-FJlbPDfdwHPeDcA"
-TEAMS_GID         = 609166241   # tab "New info teams" — shared by every term
+TEAMS_SHEET_ID    = "1-kztBuXshBnBptDWt5pdwWaT-dCUIWEHPHUG5gttbis"  # "Barça Academy Data Base"
+TEAMS_GID         = 1522724169  # tab "Teams" — shared by every term
 
 # One entry per term. To add a new term: append here (and share its sessions
 # sheet, if it's a new one, with coach-reconciliation-reader@skello-coach-
@@ -54,21 +54,19 @@ TERMS = [
 ]
 
 START_DATE        = datetime(2026, 1, 1)
-VALID_ACTIVITIES  = {"Academy", "Select", "GK"}
+VALID_ACTIVITIES  = {"Academy", "Select", "GK", "Sports Dev"}
 VALID_DAYS        = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
 
-# Column positions (0-indexed) in "New info teams" tab
-#
-# Matched by header text, not position — a column inserted/renamed upstream
-# (this tab is hand-edited) no longer silently shifts every field after it.
-# Each entry lists acceptable header names in priority order (older CSV
-# exports and the live sheet don't always agree on the exact label).
+# Columns in "Teams" tab (Barça Academy Data Base) — matched by header text,
+# not position, since the tab can get columns inserted/reordered upstream.
+# There is no literal "type" (Academy/Select/GK) or "SKELLO NAME" column here
+# — both are derived from TEAM in clean_teams() (see _derive_type/_derive_skello).
 TEAMS_COL = {
     "team":       ["TEAM"],
-    "skello":     ["SKELLO NAME"],
-    "type":       ["Academy/Select"],
-    "coach_id":   ["ID Coach 1"],
-    "coach_name": ["Coach", "Coach 1 2026"],
+    "entity":     ["ENTITY"],
+    "status":     ["STATUS"],
+    "coach_id":   ["Coach ID1"],
+    "coach_name": ["Coach 1"],
 }
 
 # Column headers in "Data" tab (Skello export) — also matched by name.
@@ -244,8 +242,8 @@ def load_via_api():
         )
 
     scopes = [
-        "https://www.googleapis.com/auth/spreadsheets.readonly",
-        "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
     ]
     creds = Credentials.from_service_account_file(creds_file, scopes=scopes)
     gc = gspread.authorize(creds)
@@ -269,8 +267,8 @@ def load_via_csv():
         sys.exit(
             f"Missing CSV files: {missing}\n\n"
             "Export from Google Sheets (File → Download → CSV):\n"
-            f"  File 1 tab 'New info teams' → {teams_path}\n"
-            f"  File 2 tab 'Data'           → {sessions_path}"
+            f"  'Barça Academy Data Base' tab 'Teams' → {teams_path}\n"
+            f"  File 2 tab 'Data'                     → {sessions_path}"
         )
     teams_raw    = pd.read_csv(teams_path, header=0)
     sessions_raw = pd.read_csv(sessions_path, header=0)
@@ -303,13 +301,20 @@ def _col(df, names):
 def clean_teams(raw):
     df = pd.DataFrame({
         "team":       _col(raw, TEAMS_COL["team"]),
-        "skello":     _col(raw, TEAMS_COL["skello"]),
-        "type":       _col(raw, TEAMS_COL["type"]),
+        "entity":     _col(raw, TEAMS_COL["entity"]),
+        "status":     _col(raw, TEAMS_COL["status"]),
         "coach_id":   _col(raw, TEAMS_COL["coach_id"]),
         "coach_name": _col(raw, TEAMS_COL["coach_name"]),
     })
     df = df.map(lambda x: str(x).strip() if pd.notna(x) else "")
-    df["type"] = df["type"].str.strip()
+
+    # "Teams" holds rows for other entities (e.g. TPUFC) and non-active teams
+    # (Inactive/Other) — restrict to the active Barça Academy roster before
+    # deriving type/skello, so those never leak into matching.
+    df = df[(df["entity"] == "BARÇA ACADEMY") & (df["status"] == "Active")].copy()
+
+    df["type"]   = df["team"].apply(_derive_type)
+    df["skello"] = df.apply(lambda r: _derive_skello(r["team"], r["type"]), axis=1)
     df = df[df["type"].isin(VALID_ACTIVITIES)].copy()
     df["coach_id"] = pd.to_numeric(df["coach_id"], errors="coerce")
     return df.reset_index(drop=True)
@@ -373,6 +378,31 @@ def write_sessions_cache(sessions, term_id):
 
 
 # ── MATCHING ──────────────────────────────────────────────────────────────────
+
+def _derive_type(team_name):
+    """Academy/GK/Select from the TEAM name prefix — "Teams" tab has no literal
+    type column. Sports Dev teams (e.g. "2011 BARÇA SPORTS DEV") have neither
+    prefix, so they fall into Select, same convention as the rest of the project."""
+    t = str(team_name).upper()
+    if t.startswith("ACADEMY "):
+        return "Academy"
+    if t.startswith("GK "):
+        return "GK"
+    return "Select"
+
+
+_SLOT_SUFFIX_RE = re.compile(r'\s+(MO|TU|WE|TH|FR|SA)\d{4}$', re.IGNORECASE)
+
+
+def _derive_skello(team_name, type_):
+    """Skello session name from TEAM — "Teams" tab has no literal SKELLO NAME
+    column. Academy/GK team names carry a trailing schedule suffix (e.g.
+    "ACADEMY Nexus 2015-2017 MO1800") that Skello's session name lacks; Select/
+    Sports Dev names never have that suffix."""
+    if type_ in ("Academy", "GK"):
+        return _SLOT_SUFFIX_RE.sub("", str(team_name))
+    return str(team_name)
+
 
 def _normalize(text):
     """Lowercase + strip activity prefix for fuzzy name matching."""
@@ -466,7 +496,10 @@ def _match_academy_gk(sess_row, teams, activity):
 
 def find_team(sess_row, teams):
     activity = sess_row["activity"]
-    if activity == "Select":
+    if activity in ("Select", "Sports Dev"):
+        # Sports Dev teams are typed "Select" — for both, the derived skello
+        # name is just the team name itself (no separate Skello field), so
+        # this matches on TEAM directly via _match_select's steps.
         return _match_select(sess_row["session"], teams)
     return _match_academy_gk(sess_row, teams, activity)
 
@@ -532,7 +565,7 @@ def reconcile(teams, sessions):
         "unmatched_sessions": [],
     }
 
-    for activity in ("Academy", "Select", "GK"):
+    for activity in ("Academy", "Select", "GK", "Sports Dev"):
         act_sessions = sessions[sessions["activity"] == activity].copy()
         category = {"name": activity, "total": {"assigned": 0, "other": 0}, "match_pct": 0, "sessions": []}
 
@@ -703,7 +736,7 @@ def reconcile_term(teams, sessions, att_lookup, term_start, term_end, airtable_n
         "unmatched_sessions": [],
     }
 
-    for activity in ("Academy", "Select", "GK"):
+    for activity in ("Academy", "Select", "GK", "Sports Dev"):
         act_sess = term_sess[term_sess["activity"] == activity].copy()
         category = {"name": activity, "sessions": []}
 

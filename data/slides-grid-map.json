@@ -1,0 +1,1020 @@
+{
+  "presentationId": "1wYL01YWe-tcI-NgbVVITpCH_RbSH7g-Cf8wHi7CgO24",
+  "generatedAt": "2026-07-31T22:23:40.733Z",
+  "venues": {
+    "Nexus": {
+      "tableObjectId": "g3f35bd085e3_2_1",
+      "slideIdx": 19,
+      "days": {
+        "Monday": [
+          {
+            "row": 2,
+            "col": 0,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "2018 BARÇA SPORTS DEV",
+                  "SELECT 2014 BLACK",
+                  "SELECT 2018 GRANA",
+                  "SELECT 2019 BLAU",
+                  "SELECT 2018 19 GIRLS",
+                  "SELECT 2020 BLAU"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 0,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": []
+              }
+            ]
+          }
+        ],
+        "Tuesday": [
+          {
+            "row": 2,
+            "col": 1,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "2015 BARÇA SPORTS DEV",
+                  "SELECT 2015 BLAU",
+                  "SELECT 2014 15 GIRLS BLAU",
+                  "SELECT 2014 15 GIRLS GRANA",
+                  "SELECT 2016 17 GIRLS"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper Training\n2010, 2011, 2012, 2013, 2014, 2015, 2016"
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2011 GREEN",
+                  "SELECT 2012 BLAU",
+                  "2009 11 BARÇA SPORTS DEV GIRLS",
+                  "SELECT 2009 11 GIRLS BLAU"
+                ]
+              },
+              {
+                "time": "1900",
+                "label": "7:00 - 8:30 pm",
+                "inline": true,
+                "teams": [
+                  "SELECT 2012 13 GIRLS"
+                ]
+              }
+            ]
+          }
+        ],
+        "Wednesday": [
+          {
+            "row": 2,
+            "col": 2,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "2016 BARÇA SPORTS DEV",
+                  "2017 BARÇA SPORTS DEV JSSL",
+                  "SELECT 2016 BLAU",
+                  "SELECT 2016 GRANA",
+                  "SELECT 2017 BLAU",
+                  "SELECT 2016 WHITE"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 2,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2012 GRANA",
+                  "SELECT 2013 BLAU",
+                  "SELECT 2013 BLACK",
+                  "SELECT 2013 GRANA",
+                  "2013 BARÇA SPORTS DEV"
+                ]
+              }
+            ]
+          }
+        ],
+        "Thursday": [
+          {
+            "row": 2,
+            "col": 3,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2014 BLAU",
+                  "SELECT 2014 GRANA",
+                  "SELECT 2014 BLACK",
+                  "SELECT 2015 BLAU",
+                  "SELECT 2015 GRANA",
+                  "SELECT 2015 BLACK"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 3,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2011 GREEN",
+                  "SELECT 2012 BLAU"
+                ]
+              }
+            ]
+          }
+        ],
+        "Friday": [
+          {
+            "row": 2,
+            "col": 4,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "2015 BARÇA SPORTS DEV",
+                  "2017 BARÇA SPORTS DEV SYL",
+                  "SELECT 2016 BLAU",
+                  "SELECT 2017 GRANA",
+                  "SELECT 2019 GRANA"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 4,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2013 BLACK",
+                  "SELECT 2013 GRANA",
+                  "2013 BARÇA SPORTS DEV"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "saturday": [
+        {
+          "row": 7,
+          "col": 0,
+          "label": "8-00 - 9.30 am",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "0800",
+              "label": "8-00 - 9.30 am",
+              "inline": false,
+              "teams": [
+                "SELECT 2017 BLAU",
+                "2017 BARÇA SPORTS DEV JSSL",
+                "2018 BARÇA SPORTS DEV",
+                "SELECT 2019 BLAU"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 1,
+          "label": "9.30 - 11.00",
+          "reportAt": "9.15 am",
+          "segments": [
+            {
+              "time": "0930",
+              "label": "9.30 - 11.00",
+              "inline": false,
+              "teams": [
+                "SELECT 2018 GRANA",
+                "SELECT 2015 GRANA",
+                "SELECT 2020 BLAU",
+                "SELECT 2018 19 GIRLS"
+              ]
+            },
+            {
+              "type": "gk",
+              "text": "Goalkeeper training\n2015, 2016, 2017, 2018, 2019, 2020"
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 2,
+          "label": "11.00 - 12.30",
+          "reportAt": "10.45 am",
+          "segments": [
+            {
+              "time": "1100",
+              "label": "11.00 - 12.30",
+              "inline": false,
+              "teams": [
+                "SELECT 2015 BLACK",
+                "SELECT 2016 GRANA",
+                "2015 BARÇA SPORTS DEV",
+                "2016 BARÇA SPORTS DEV",
+                "SELECT 2016 BLAU"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 3,
+          "label": "3.00 - 4.30 pm",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "1500",
+              "label": "3.00 - 4.30 pm",
+              "inline": false,
+              "teams": [
+                "SELECT 2012 13 GIRLS",
+                "SELECT 2014 15 GIRLS BLAU",
+                "SELECT 2014 15 GIRLS GRANA",
+                "SELECT 2016 17 GIRLS"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 4,
+          "label": "4.30 - 6.00",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "1630",
+              "label": "4.30 - 6.00",
+              "inline": false,
+              "teams": [
+                "SELECT 2012 GRANA",
+                "SELECT 2019 GRANA",
+                "SELECT 2009 11 GIRLS BLAU",
+                "2009 11 BARÇA SPORTS DEV GIRLS"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 5,
+          "label": "6.00 - 7.30",
+          "reportAt": "5.45 pm",
+          "segments": [
+            {
+              "time": "1800",
+              "label": "6.00 - 7.30",
+              "inline": false,
+              "teams": [
+                "SELECT 2017 GRANA",
+                "2012 BARÇA SPORTS DEV",
+                "SELECT 2016 WHITE"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "St Patricks": {
+      "tableObjectId": "g3f35bd085e3_2_3",
+      "slideIdx": 21,
+      "days": {
+        "Monday": [
+          {
+            "row": 2,
+            "col": 0,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2014 GRANA",
+                  "SELECT 2014 ORANGE",
+                  "SELECT 2014 GREY -SOON-",
+                  "SELECT 2015 ORANGE",
+                  "SELECT 2015 PURPLE",
+                  "SELECT 2015 GREY - SOON-",
+                  "2017 BARÇA SPORTS DEV SYL",
+                  "SELECT 2017 GREY"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper Training\n2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017"
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 0,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2012 GROC",
+                  "SELECT 2013 GROC"
+                ]
+              },
+              {
+                "time": "1900",
+                "label": "7:00 - 8:30 pm",
+                "inline": true,
+                "teams": [
+                  "SELECT 2014 GROC",
+                  "SELECT 2014 BLAU"
+                ]
+              }
+            ]
+          }
+        ],
+        "Tuesday": [
+          {
+            "row": 2,
+            "col": 1,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2014 PURPLE",
+                  "SELECT 2015 GROC",
+                  "SELECT 2016 GREY",
+                  "SELECT 2018 ORANGE",
+                  "SELECT 2019 GROC",
+                  "SELECT 2019 ORANGE",
+                  "SELECT 2019 PURPLE",
+                  "SELECT 2019 GREY -SOON-",
+                  "SELECT 2020 GROC",
+                  "SELECT 2020 PURPLE"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper Training\n2014, 2015, 2016, 2017, 2018, 2019"
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2011 GROC",
+                  "SELECT 2011 ORANGE",
+                  "SELECT 2013 ORANGE",
+                  "SELECT 2013 PURPLE"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper Training\n2010, 2011, 2012"
+              }
+            ]
+          }
+        ],
+        "Wednesday": [
+          {
+            "row": 2,
+            "col": 2,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2015 ORANGE",
+                  "SELECT 2016 GROC",
+                  "SELECT 2016 ORANGE",
+                  "SELECT 2016 PURPLE",
+                  "SELECT 2017 GROC",
+                  "SELECT 2017 ORANGE",
+                  "SELECT 2017 PURPLE",
+                  "SELECT 2018 GROC"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper Training\n2015, 2016, 2017, 2018"
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 2,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2010 GROC"
+                ]
+              },
+              {
+                "time": "1900",
+                "label": "7:00 - 8:30 pm",
+                "inline": true,
+                "teams": [
+                  "SELECT 2014 GROC"
+                ]
+              }
+            ]
+          }
+        ],
+        "Thursday": [
+          {
+            "row": 2,
+            "col": 3,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2014 GREY -SOON-",
+                  "SELECT 2019 GROC",
+                  "SELECT 2019 ORANGE",
+                  "SELECT 2018 GREY -SOON-",
+                  "SELECT 2018 PURPLE",
+                  "SELECT 2020 GROC"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 3,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2011 ORANGE",
+                  "SELECT 2013 GROC"
+                ]
+              }
+            ]
+          }
+        ],
+        "Friday": [
+          {
+            "row": 2,
+            "col": 4,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2014 ORANGE",
+                  "SELECT 2014 PURPLE",
+                  "SELECT 2015 GREY - SOON-",
+                  "SELECT 2016 GREY",
+                  "SELECT 2017 GREY",
+                  "SELECT 2019 PURPLE",
+                  "SELECT 2020 ORANGE"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 4,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9.00pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2011 GROC",
+                  "SELECT 2012 GROC"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "saturday": [
+        {
+          "row": 7,
+          "col": 0,
+          "label": "8-00 - 9.30 am",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "0800",
+              "label": "8-00 - 9.30 am",
+              "inline": false,
+              "teams": [
+                "SELECT 2015 PURPLE",
+                "SELECT 2020 PURPLE",
+                "SELECT 2018 GREY -SOON-"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 1,
+          "label": "9.30 - 11.00",
+          "reportAt": "9.15 am",
+          "segments": [
+            {
+              "time": "0930",
+              "label": "9.30 - 11.00",
+              "inline": false,
+              "teams": [
+                "SELECT 2010 GROC",
+                "SELECT 2015 GROC",
+                "SELECT 2017 GROC",
+                "SELECT 2017 ORANGE",
+                "SELECT 2018 GROC",
+                "SELECT 2018 PURPLE"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 2,
+          "label": "4.00 - 5.30 pm",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "1600",
+              "label": "4.00 - 5.30 pm",
+              "inline": false,
+              "teams": [
+                "SELECT 2019 GREY -SOON-",
+                "SELECT 2020 ORANGE"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 3,
+          "label": "5.30 - 7.00",
+          "reportAt": "5.15 pm",
+          "segments": [
+            {
+              "time": "1730",
+              "label": "5.30 - 7.00",
+              "inline": false,
+              "teams": [
+                "SELECT 2013 ORANGE",
+                "SELECT 2013 PURPLE",
+                "SELECT 2016 GROC",
+                "SELECT 2016 ORANGE",
+                "SELECT 2016 PURPLE",
+                "SELECT 2017 PURPLE",
+                "SELECT 2018 ORANGE"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "SJII": {
+      "tableObjectId": "g3f35bd085e3_2_5",
+      "slideIdx": 23,
+      "days": {
+        "Monday": [
+          {
+            "row": 2,
+            "col": 0,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "2014 BARÇA SPORTS DEV JSSL",
+                  "2014 BARÇA SPORTS DEV SYL",
+                  "SELECT 2015 GREEN",
+                  "SELECT 2015 NAVY",
+                  "SELECT 2017 GREEN",
+                  "SELECT 2017 NAVY",
+                  "SELECT 2018 RED"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper Training\n2013, 2014, 2015, 2016, 2017, 2018"
+              }
+            ]
+          }
+        ],
+        "Tuesday": [
+          {
+            "row": 2,
+            "col": 1,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2013 GREEN",
+                  "SELECT 2013 NAVY",
+                  "SELECT 2014 GREEN",
+                  "SELECT 2014 NAVY",
+                  "SELECT 2016 RED",
+                  "SELECT 2018 NAVY"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper Training\n2012, 2013, 2014, 2015, 2016, 2017, 2018"
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9:00 pm",
+                "inline": false,
+                "teams": [
+                  "2012 BARÇA SPORTS DEV",
+                  "2013 BARÇA SPORTS DEV"
+                ]
+              }
+            ]
+          }
+        ],
+        "Wednesday": [
+          {
+            "row": 2,
+            "col": 2,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2016 GREEN",
+                  "SELECT 2016 BLACK",
+                  "SELECT 2019 GREEN",
+                  "SELECT 2019 NAVY",
+                  "SELECT 2020 GREEN"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 2,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9:00 pm",
+                "inline": false,
+                "teams": [
+                  "2009 10 BARÇA SPORTS DEV",
+                  "2011 BARÇA SPORTS DEV"
+                ]
+              }
+            ]
+          }
+        ],
+        "Thursday": [
+          {
+            "row": 2,
+            "col": 3,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "2014 BARÇA SPORTS DEV JSSL",
+                  "2014 BARÇA SPORTS DEV SYL",
+                  "SELECT 2017 RED",
+                  "SELECT 2014 GREEN"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 3,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9:00 pm",
+                "inline": false,
+                "teams": [
+                  "2012 BARÇA SPORTS DEV"
+                ]
+              }
+            ]
+          }
+        ],
+        "Friday": [
+          {
+            "row": 2,
+            "col": 4,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "2016 BARÇA SPORTS DEV",
+                  "SELECT 2015 GREEN",
+                  "SELECT 2015 NAVY",
+                  "SELECT 2016 BLACK",
+                  "SELECT 2016 RED",
+                  "SELECT 2018 NAVY",
+                  "SELECT 2019 GREEN",
+                  "SELECT 2019 NAVY"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper Training\n2013, 2004, 2015, 2016, 2017, 2018, 2019"
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 4,
+            "segments": [
+              {
+                "time": "1930",
+                "label": "7.30 - 9:00 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2013 BLAU",
+                  "SELECT 2013 GREEN",
+                  "SELECT 2013 NAVY"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "saturday": [
+        {
+          "row": 7,
+          "col": 0,
+          "label": "7.30 - 9.00 am",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "0730",
+              "label": "7.30 - 9.00 am",
+              "inline": false,
+              "teams": [
+                "SELECT 2017 GREEN",
+                "SELECT 2017 NAVY",
+                "SELECT 2017 RED",
+                "SELECT 2018 RED",
+                "SELECT 2020 GREEN"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 1,
+          "label": "11.00 - 12.30",
+          "reportAt": "10.45 am",
+          "segments": [
+            {
+              "time": "1100",
+              "label": "11.00 - 12.30",
+              "inline": false,
+              "teams": [
+                "SELECT 2014 NAVY",
+                "SELECT 2015 RED",
+                "SELECT 2016 GREEN"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "Perse": {
+      "tableObjectId": "g3f35bd085e3_2_7",
+      "slideIdx": 25,
+      "days": {
+        "Monday": [
+          {
+            "row": 2,
+            "col": 0,
+            "segments": [
+              {
+                "time": "1800",
+                "label": "6.00 - 7.30 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2013 14 NEON",
+                  "SELECT 2018 GREEN",
+                  "SELECT 2019 NEON",
+                  "SELECT 2019 MAGENTA",
+                  "SELECT 2020 NEON"
+                ]
+              }
+            ]
+          }
+        ],
+        "Tuesday": [
+          {
+            "row": 2,
+            "col": 1,
+            "segments": [
+              {
+                "time": "1730",
+                "label": "5.30 - 7.00 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2015 RED"
+                ]
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 1,
+            "segments": [
+              {
+                "time": "1900",
+                "label": "7.00 - 8:30 pm",
+                "inline": false,
+                "teams": [
+                  "2009 10 BARÇA SPORTS DEV"
+                ]
+              }
+            ]
+          }
+        ],
+        "Wednesday": [
+          {
+            "row": 2,
+            "col": 2,
+            "segments": [
+              {
+                "time": "1730",
+                "label": "5.30 - 7.00 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2015 16 NEON"
+                ]
+              }
+            ]
+          }
+        ],
+        "Friday": [
+          {
+            "row": 2,
+            "col": 4,
+            "segments": [
+              {
+                "time": "1730",
+                "label": "5.30 - 7.00 pm",
+                "inline": false,
+                "teams": [
+                  "SELECT 2015 16 NEON",
+                  "SELECT 2017 NEON",
+                  "SELECT 2018 NEON"
+                ]
+              },
+              {
+                "type": "gk",
+                "text": "Goalkeeper training\n2015, 2016, 2017, 2018"
+              }
+            ]
+          },
+          {
+            "row": 4,
+            "col": 4,
+            "segments": [
+              {
+                "time": "1900",
+                "label": "7.00 - 8:30 pm",
+                "inline": false,
+                "teams": [
+                  "2009 10 BARÇA SPORTS DEV",
+                  "2011 BARÇA SPORTS DEV"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "saturday": [
+        {
+          "row": 7,
+          "col": 0,
+          "label": "8:30 - 10:00 am",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "0830",
+              "label": "8:30 - 10:00 am",
+              "inline": false,
+              "teams": [
+                "SELECT 2018 GREEN"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 1,
+          "label": "10:00 - 11:30 am",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "1000",
+              "label": "10:00 - 11:30 am",
+              "inline": false,
+              "teams": [
+                "SELECT 2013 14 NEON",
+                "SELECT 2017 NEON",
+                "SELECT 2018 NEON"
+              ]
+            }
+          ]
+        },
+        {
+          "row": 7,
+          "col": 2,
+          "label": "4.00 - 5.30 pm",
+          "reportAt": null,
+          "segments": [
+            {
+              "time": "1600",
+              "label": "4.00 - 5.30 pm",
+              "inline": false,
+              "teams": [
+                "SELECT 2019 NEON",
+                "SELECT 2019 MAGENTA",
+                "SELECT 2020 NEON"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
