@@ -23,7 +23,7 @@ Compara las asignaciones teóricas de entrenadores (fichero de equipos) contra l
 |---------|-----------|
 | `process.py` | Paso 1 del pipeline — lee Google Sheets (API) o CSVs (`--csv`), reconcilia **cada term del registro `TERMS`**, genera `data/term_output_<id>.json`, `data/sessions_cache_<id>.json` y `data/terms_index.json` |
 | `enrich-attendance.mjs` | Paso 2 del pipeline — lee `data/terms_index.json` y enriquece cada `term_output_<id>.json` con `dates[]`, `by_date[]`, `att_by_date[]` |
-| `fetch-coaches.mjs` | Paso 0 del pipeline — sincroniza teléfonos de coaches desde Airtable, escribe `data/coaches.csv` y parchea `COACH_PHONES`/`COACH_STATUS` en `index.html`. **También** escribe columnas `NAME SURNAME, STATUS, ID, PHONE, MAIL` (ese orden exacto, no reordenar) en la pestaña "Coaches Air" del Google Sheet "Barça Academy Data Base" (`1-kztBuXshBnBptDWt5pdwWaT-dCUIWEHPHUG5gttbis`) — un proyecto no relacionado con este repo, pero reutiliza este cron para no montar infraestructura nueva. Autentica contra Sheets API con `credentials.json` vía un flow JWT-bearer hecho a mano (sin deps npm, usa `crypto` nativo) |
+| `fetch-coaches.mjs` | Paso 0 del pipeline — sincroniza teléfonos de coaches desde Airtable y escribe `data/coaches.csv` (`index.html` lo carga por `fetch()` al arrancar, ver "Botón WhatsApp"). **También** escribe columnas `NAME SURNAME, STATUS, ID, PHONE, MAIL` (ese orden exacto, no reordenar) en la pestaña "Coaches Air" del Google Sheet "Barça Academy Data Base" (`1-kztBuXshBnBptDWt5pdwWaT-dCUIWEHPHUG5gttbis`) — un proyecto no relacionado con este repo, pero reutiliza este cron para no montar infraestructura nueva. Autentica contra Sheets API con `credentials.json` vía un flow JWT-bearer hecho a mano (sin deps npm, usa `crypto` nativo) |
 | `update-dashboard.sh` | Orquesta los 3 pasos anteriores en orden (`fetch-coaches` → `process` → `enrich`). Correr con `--csv` para modo local/dev, sin flags para producción (Sheets API) |
 | `index.html` | Dashboard VPS — selector de **term** (arriba) + **dos pestañas** (Sessions + Coaches), carga `data/terms_index.json` y, perezosamente, el `term_output_<id>.json` del term seleccionado |
 | `comments_script.gs` | Código del Google Apps Script para backend de comentarios |
@@ -278,16 +278,12 @@ Los comentarios se guardan en la pestaña **"Comments"** del spreadsheet origina
 
 ## Botón WhatsApp
 
-Mapa `coach_id → teléfono` embebido como constante `COACH_PHONES` en `index.html`.
+Mapa `coach_id → teléfono` en `COACH_PHONES` (y status en `COACH_STATUS`), en `index.html` — **ya no están hardcodeados**: son `let` vacíos poblados por `loadCoaches()` al arrancar la página, que hace `fetch("data/coaches.csv")` y lo parsea en el cliente. Se cargan en paralelo con `loadTermsIndex()`/`loadComments()` en el `Promise.all` de arranque, antes de la primera llamada a `switchTerm()`/render.
 
 **Fuente de teléfonos:**
-`data/coaches.csv` (generado por `fetch-coaches.mjs` desde Airtable) — columna `PHONE` (col 13), columna `ID` (col 1). Es la **única** fuente desde la migración a la pestaña "Teams" (que no tiene columnas de teléfono); antes `data/teams.csv` (cols AD/AG/AJ de "New info teams") era fuente secundaria.
+`data/coaches.csv` (generado por `fetch-coaches.mjs` desde Airtable) — columnas `ID`, `PHONE`, `Status`. Es la **única** fuente desde la migración a la pestaña "Teams" (que no tiene columnas de teléfono); antes `data/teams.csv` (cols AD/AG/AJ de "New info teams") era fuente secundaria.
 
-**Proceso para actualizar COACH_PHONES:**
-1. Exportar coaches.csv del sistema de gestión de coaches
-2. Leer col `ID` y col `PHONE`
-3. Para coaches que aparecen en el dashboard (`term_output.json`) pero no tienen botón, buscar su ID en coaches.csv col `ID`
-4. Añadir la entrada `"coach_id":"phone"` en la constante `COACH_PHONES` de `index.html` manteniendo orden numérico
+**Para actualizar teléfonos/status ya no hace falta tocar `index.html`** — `fetch-coaches.mjs` solo escribe `data/coaches.csv` (Paso 0 del pipeline, corre 4x/día); el navegador lo recarga en cada visita. Antes de 2026-08-10, `fetch-coaches.mjs` parcheaba `COACH_PHONES`/`COACH_STATUS` directamente en `index.html` con un `replace` por regex — se quitó porque era frágil (fallaba en silencio si el patrón de texto no coincidía exactamente) y obligaba a re-subir `index.html` en cada sync de Airtable.
 
 Mensaje pre-redactado (firmado por Jordi, enlace a attendance.barcaacademy.sg).
 

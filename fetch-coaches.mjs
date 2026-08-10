@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * fetch-coaches.mjs
- * Descarga coaches de Airtable y actualiza COACH_PHONES y COACH_STATUS en
- * index.html — ambos se derivan siempre de Airtable, nunca a mano.
+ * Descarga coaches de Airtable y escribe data/coaches.csv (teléfono + status
+ * por coach_id) — index.html lo carga por fetch() al arrancar, nunca a mano.
  * Requiere: AIRTABLE_API_KEY en .env o en variable de entorno.
  */
 
@@ -222,32 +222,8 @@ console.log(`  ${Object.keys(sortedPhones).length} coaches con teléfono | ${noP
 console.log(`  ${Object.keys(sortedStatuses).length} coaches con status (Active/Former)`);
 
 // ── Save coaches.csv ──────────────────────────────────────────────────────────
+// index.html fetches this file directly at boot (loadCoaches()) — no longer
+// patches COACH_PHONES/COACH_STATUS into index.html itself.
 const csvPath = join(__dir, 'data', 'coaches.csv');
 writeFileSync(csvPath, csvRows.join('\n') + '\n', 'utf8');
 console.log(`✅  data/coaches.csv guardado (${records.length} filas)`);
-
-// ── Patch COACH_PHONES / COACH_STATUS in index.html ──────────────────────────
-const htmlPath = join(__dir, 'index.html');
-let html = readFileSync(htmlPath, 'utf8');
-
-function patchConst(html, constName, valueObj) {
-  const regex    = new RegExp(`const ${constName} = \\{[^}]*\\};`);
-  const newConst = `const ${constName} = ${JSON.stringify(valueObj)};`;
-
-  if (!regex.test(html)) {
-    console.warn(`⚠️   No se encontró ${constName} en index.html — revisa el formato`);
-    return html;
-  }
-  const updated = html.replace(regex, newConst);
-  if (updated === html) {
-    console.log(`  ${constName} sin cambios en index.html`);
-  } else {
-    console.log(`✅  ${constName} actualizado en index.html (${Object.keys(valueObj).length} entradas)`);
-  }
-  return updated;
-}
-
-html = patchConst(html, 'COACH_PHONES', sortedPhones);
-html = patchConst(html, 'COACH_STATUS', sortedStatuses);
-
-writeFileSync(htmlPath, html, 'utf8');
