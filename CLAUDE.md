@@ -23,7 +23,7 @@ Compara las asignaciones teóricas de entrenadores (fichero de equipos) contra l
 |---------|-----------|
 | `process.py` | Paso 1 del pipeline — lee Google Sheets (API) o CSVs (`--csv`), reconcilia **cada term del registro `TERMS`**, genera `data/term_output_<id>.json`, `data/sessions_cache_<id>.json` y `data/terms_index.json` |
 | `enrich-attendance.mjs` | Paso 2 del pipeline — lee `data/terms_index.json` y enriquece cada `term_output_<id>.json` con `dates[]`, `by_date[]`, `att_by_date[]` |
-| `fetch-coaches.mjs` | Paso 0 del pipeline — sincroniza teléfonos de coaches desde Airtable, escribe `data/coaches.csv` y parchea `COACH_PHONES`/`COACH_STATUS` en `index.html`. **También** escribe columnas `NAME SURNAME, STATUS, ID, PHONE, MAIL` (ese orden exacto, no reordenar) en la pestaña "Coaches Air" del Google Sheet "Barça Academy Data Base" (`1-kztBuXshBnBptDWt5pdwWaT-dCUIWEHPHUG5gttbis`) — un proyecto no relacionado con este repo, pero reutiliza este cron diario para no montar infraestructura nueva. Autentica contra Sheets API con `credentials.json` vía un flow JWT-bearer hecho a mano (sin deps npm, usa `crypto` nativo) |
+| `fetch-coaches.mjs` | Paso 0 del pipeline — sincroniza teléfonos de coaches desde Airtable, escribe `data/coaches.csv` y parchea `COACH_PHONES`/`COACH_STATUS` en `index.html`. **También** escribe columnas `NAME SURNAME, STATUS, ID, PHONE, MAIL` (ese orden exacto, no reordenar) en la pestaña "Coaches Air" del Google Sheet "Barça Academy Data Base" (`1-kztBuXshBnBptDWt5pdwWaT-dCUIWEHPHUG5gttbis`) — un proyecto no relacionado con este repo, pero reutiliza este cron para no montar infraestructura nueva. Autentica contra Sheets API con `credentials.json` vía un flow JWT-bearer hecho a mano (sin deps npm, usa `crypto` nativo) |
 | `update-dashboard.sh` | Orquesta los 3 pasos anteriores en orden (`fetch-coaches` → `process` → `enrich`). Correr con `--csv` para modo local/dev, sin flags para producción (Sheets API) |
 | `index.html` | Dashboard VPS — selector de **term** (arriba) + **dos pestañas** (Sessions + Coaches), carga `data/terms_index.json` y, perezosamente, el `term_output_<id>.json` del term seleccionado |
 | `comments_script.gs` | Código del Google Apps Script para backend de comentarios |
@@ -43,7 +43,7 @@ Compara las asignaciones teóricas de entrenadores (fichero de equipos) contra l
 
 ## Pipeline completo
 
-**Producción (VPS, automático vía cron diario, sin exportar nada a mano):**
+**Producción (VPS, automático vía cron 4x/día, sin exportar nada a mano):**
 
 El pipeline corre directamente dentro de `/var/www/bacoaches/` en el VPS, leyendo Google Sheets vía API (Service Account) — no requiere que nadie exporte CSVs ni haga `scp` de datos:
 
@@ -52,7 +52,7 @@ ssh -i ~/.ssh/hostinger_key root@89.116.33.101
 cd /opt/bacoaches-pipeline && ./update-dashboard.sh
 ```
 
-Cron (en el VPS): `0 22 * * * cd /opt/bacoaches-pipeline && ./update-dashboard.sh >> /var/log/bacoaches-pipeline.log 2>&1` (22:00 UTC = 06:00 SGT).
+Cron (en el VPS): `0 2,8,14,20 * * * cd /opt/bacoaches-pipeline && ./update-dashboard.sh >> /var/log/bacoaches-pipeline.log 2>&1` — **4 veces al día**, mismo horario que el resto de automatizaciones del VPS (`academia-tools`, `sync-teams-to-slides.mjs`). Antes corría solo una vez al día (22:00 UTC); se cambió el 2026-08-10 para no quedarse desactualizado horas cuando alguien añade sesiones nuevas en Skello a mitad de día.
 
 **Local/dev (modo `--csv`, sin credenciales de Google):**
 
